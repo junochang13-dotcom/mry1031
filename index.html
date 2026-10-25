@@ -119,10 +119,10 @@
                     <i class="fa-solid fa-qrcode"></i>
                     <span>QR Code</span>
                 </button>
-                <button id="nav-admin" onclick="switchTab('admin')" class="px-2.5 sm:px-3 py-1.5 rounded-lg border border-gold-500/10 text-slate-400 hover:text-gold-300 transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-sliders"></i>
-                    <span>名單管理</span>
-                </button>
+                <button id="nav-admin" onclick="requestAdminAccess()" class="px-2.5 sm:px-3 py-1.5 rounded-lg border border-gold-500/30 text-slate-400 hover:text-gold-300 transition flex items-center gap-1.5">
+    <i class="fa-solid fa-sliders"></i>
+    <span>名單管理 <span id="lock-icon" class="text-xs">🔒</span></span>
+</button>
             </nav>
         </div>
     </header>
@@ -420,6 +420,25 @@
 
 
     <!-- JAVASCRIPT 邏輯與修復 -->
+<!-- 密碼解鎖 Modal -->
+<div id="password-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-sm hidden p-4">
+    <div class="glass-card max-w-sm w-full p-6 rounded-3xl shadow-2xl border-2 border-amber-500/50 text-center space-y-4">
+        <div class="w-12 h-12 rounded-full gold-gradient flex items-center justify-center text-slate-950 font-bold text-xl mx-auto shadow-md">
+            🔒
+        </div>
+        <h3 class="text-lg font-bold text-white">請輸入後台管理密碼</h3>
+        <p class="text-xs text-slate-400">為避免民眾誤刪或修改資料，請輸入管理密碼（預設密碼為：1234）</p>
+        
+        <form onsubmit="verifyAdminPassword(event)" class="space-y-4 pt-2">
+            <input type="password" id="admin-pwd-input" placeholder="請輸入密碼" required autofocus
+                class="w-full px-4 py-3 bg-slate-900 border border-amber-500/40 rounded-xl text-center text-white text-lg tracking-widest focus:outline-none focus:border-amber-400">
+            <div class="flex gap-2">
+                <button type="button" onclick="closePasswordModal()" class="w-1/2 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-sm transition-all">取消</button>
+                <button type="submit" class="w-1/2 py-2.5 gold-gradient text-slate-950 font-bold rounded-xl text-sm transition-all hover:opacity-90">確認解鎖</button>
+            </div>
+        </form>
+    </div>
+</div>
     <script>
         // 預設範例資料集
         const DEFAULT_GUESTS = [
@@ -1250,12 +1269,16 @@
             if (matches.length > 0) {
                 noResultMsg.classList.add('hidden');
                 suggestList.innerHTML = matches.map(g => `
-                    <div onclick="selectGuest('${g.id}')" class="px-4 py-3 hover:bg-gold-500/20 cursor-pointer flex justify-between items-center transition group">
-                        <span class="text-white font-medium group-hover:text-gold-300 text-base">
-                            <i class="fa-solid fa-user-check text-gold-400 mr-2 text-sm"></i>${escapeHtml(g.name)}
-                        </span>
-                        <span class="text-xs text-slate-400 bg-navy-950 px-2.5 py-1 rounded border border-slate-700">查看資訊</span>
-                    </div>
+                    <div class="flex justify-between items-center border-b border-gold-500/20 pb-4">
+    <div>
+        <h2 class="text-xl font-black text-gold-400">賓客名單後台管理</h2>
+        <p class="text-slate-400 text-xs mt-1">您可以新增、刪除或從 Excel / CSV 匯入名單</p>
+    </div>
+    <!-- 加上這顆登出後台按鈕 -->
+    <button onclick="lockAdmin()" class="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40 rounded-lg text-xs font-medium transition-all">
+        🔒 登出後台
+    </button>
+</div>
                 `).join('');
                 suggestList.classList.remove('hidden');
             } else {
@@ -1596,6 +1619,54 @@
                 }[m];
             });
         }
+// ==========================================
+// 後台管理密碼鎖設定
+// ==========================================
+const ADMIN_PASSWORD = "0229"; // 您可在此更改後台密碼
+let isAdminUnlocked = false;
+
+// 1. 攔截點擊名單管理時的驗證
+function requestAdminAccess() {
+    if (isAdminUnlocked) {
+        switchTab('admin'); // 對應您原本的 admin 分頁
+        return;
+    }
+    document.getElementById('admin-pwd-input').value = '';
+    document.getElementById('password-modal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('admin-pwd-input').focus(), 100);
+}
+
+// 2. 關閉密碼視窗
+function closePasswordModal() {
+    document.getElementById('password-modal').classList.add('hidden');
+}
+
+// 3. 驗證密碼是否正確
+function verifyAdminPassword(e) {
+    e.preventDefault();
+    const inputVal = document.getElementById('admin-pwd-input').value;
+    if (inputVal === ADMIN_PASSWORD) {
+        isAdminUnlocked = true;
+        // 如果您的鎖頭圖示 ID 不同，可以檢查一下 HTML；若無鎖頭圖示可刪除此行
+        const lockIcon = document.getElementById('lock-icon');
+        if (lockIcon) lockIcon.innerText = '🔓';
+        
+        closePasswordModal();
+        switchTab('admin'); // 密碼正確，跳轉至管理分頁
+    } else {
+        alert("密碼錯誤，請重新輸入！"); // 或使用您原本的 showAlert
+    }
+}
+
+// 4. 登出後台（重新上鎖）
+function lockAdmin() {
+    isAdminUnlocked = false;
+    const lockIcon = document.getElementById('lock-icon');
+    if (lockIcon) lockIcon.innerText = '🔒';
+    
+    switchTab('search'); // 登出後自動跳回原本的查詢分頁（請確認您原本搜尋分頁叫 'search' 還是 'query'）
+    alert("後台管理已重新上鎖。");
+}
     </script>
 </body>
 </html>
