@@ -1264,21 +1264,17 @@
             }
 
             // 僅比對姓名 (模糊搜尋)
-            const matches = guests.filter(g => g.name.toLowerCase().includes(query));
+             const matches = guests.filter(g => g.name.toLowerCase().includes(query));
 
             if (matches.length > 0) {
                 noResultMsg.classList.add('hidden');
                 suggestList.innerHTML = matches.map(g => `
-                    <div class="flex justify-between items-center border-b border-gold-500/20 pb-4">
-    <div>
-        <h2 class="text-xl font-black text-gold-400">賓客名單後台管理</h2>
-        <p class="text-slate-400 text-xs mt-1">您可以新增、刪除或從 Excel / CSV 匯入名單</p>
-    </div>
-    <!-- 加上這顆登出後台按鈕 -->
-    <button onclick="lockAdmin()" class="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40 rounded-lg text-xs font-medium transition-all">
-        🔒 登出後台
-    </button>
-</div>
+                    <div onclick="selectGuest('${g.id}')" class="px-4 py-3 hover:bg-gold-500/20 cursor-pointer flex justify-between items-center transition group">
+                        <span class="text-white font-medium group-hover:text-gold-300 text-base">
+                            <i class="fa-solid fa-user-check text-gold-400 mr-2 text-sm"></i>${escapeHtml(g.name)}
+                        </span>
+                        <span class="text-xs text-slate-400 bg-navy-950 px-2.5 py-1 rounded border border-slate-700">查看資訊</span>
+                    </div>
                 `).join('');
                 suggestList.classList.remove('hidden');
             } else {
@@ -1287,7 +1283,7 @@
             }
         }
 
-        function clearSearch() {
+ function clearSearch() {
             const input = document.getElementById('name-search-input');
             input.value = '';
             handleSearchInput('');
