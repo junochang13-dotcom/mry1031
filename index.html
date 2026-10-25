@@ -1,0 +1,1601 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>餐會貴賓報到與座位查詢系統</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- QRCode.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            800: '#1C2541',
+                            900: '#0B132B',
+                            950: '#050914',
+                        },
+                        gold: {
+                            300: '#F3E5AB',
+                            400: '#D4AF37',
+                            500: '#AA7C11',
+                            600: '#855E00',
+                        }
+                    },
+                    fontFamily: {
+                        serif: ['"Noto Serif TC"', 'serif'],
+                        sans: ['"Noto Sans TC"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #050914;
+            color: #e2e8f0;
+        }
+
+        .gold-gradient-text {
+            background: linear-gradient(135deg, #fff6d6 0%, #D4AF37 50%, #AA7C11 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .gold-border-glow {
+            box-shadow: 0 0 25px rgba(212, 175, 55, 0.25);
+            border: 1px solid rgba(212, 175, 55, 0.4);
+        }
+
+        .gold-btn {
+            background: linear-gradient(135deg, #D4AF37 0%, #AA7C11 100%);
+            color: #050914;
+            transition: all 0.3s ease;
+        }
+
+        .gold-btn:hover {
+            background: linear-gradient(135deg, #F3E5AB 0%, #D4AF37 100%);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+        }
+
+        .modal-blur {
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        /* 自訂滾動條 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0B132B;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #AA7C11;
+            border-radius: 3px;
+        }
+
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            body {
+                background: white !important;
+                color: black !important;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-gold-500 selection:text-navy-950">
+
+    <!-- 頂部導覽頁籤 -->
+    <header class="border-b border-gold-500/20 bg-navy-900/90 backdrop-blur sticky top-0 z-30 no-print">
+        <div class="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-2 cursor-pointer" onclick="switchTab('search')">
+                <i class="fa-solid font-serif text-gold-400 text-2xl">✨</i>
+                <span class="font-serif font-bold text-lg tracking-wider gold-gradient-text">心鉅銘榮元，共創未來</span>
+            </div>
+            
+            <nav class="flex gap-1 sm:gap-2 text-xs sm:text-sm">
+                <button id="nav-search" onclick="switchTab('search')" class="px-2.5 sm:px-3 py-1.5 rounded-lg border border-gold-500/30 bg-gold-500/10 text-gold-300 font-medium transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <span>姓名查詢</span>
+                </button>
+                <button id="nav-qrcode" onclick="switchTab('qrcode')" class="px-2.5 sm:px-3 py-1.5 rounded-lg border border-gold-500/10 text-slate-400 hover:text-gold-300 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-qrcode"></i>
+                    <span>QR Code</span>
+                </button>
+                <button id="nav-admin" onclick="switchTab('admin')" class="px-2.5 sm:px-3 py-1.5 rounded-lg border border-gold-500/10 text-slate-400 hover:text-gold-300 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>名單管理</span>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 主內容區域 -->
+    <main class="flex-grow max-w-5xl w-full mx-auto p-4 sm:p-6 flex flex-col justify-center">
+
+        <!-- ================= 頁籤 1：純姓名查詢 (民眾主要介面) ================= -->
+        <section id="tab-search" class="w-full max-w-lg mx-auto py-6">
+            <div class="text-center mb-8">
+                <p class="text-gold-400 tracking-widest text-xs sm:text-sm uppercase mb-2">Welcome & Check-in</p>
+                <h1 class="font-serif text-3xl sm:text-4xl font-bold gold-gradient-text mb-3">餐會賓客桌位查詢</h1>
+                <p class="text-slate-400 text-sm">請輸入您的姓名查詢報到窗口與桌位號碼</p>
+            </div>
+
+            <!-- 姓名搜尋輸入框 -->
+            <div class="relative mb-6">
+                <div class="relative flex items-center">
+                    <i class="fa-solid fa-user text-gold-400 text-lg absolute left-4 pointer-events-none"></i>
+                    <input type="text" id="name-search-input" placeholder="請輸入您的姓名 (例如：銘榮元)" 
+                        class="w-full pl-12 pr-10 py-4 rounded-xl bg-navy-800 border-2 border-gold-500/40 text-white placeholder-slate-500 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-500/20 text-base sm:text-lg transition shadow-lg"
+                        oninput="handleSearchInput(this.value)" autocomplete="off">
+                    <button id="clear-btn" onclick="clearSearch()" class="hidden absolute right-4 text-slate-400 hover:text-white">
+                        <i class="fa-solid fa-circle-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <!-- 即時搜尋下拉建議列表 (Auto-suggest) -->
+                <div id="suggest-list" class="hidden absolute top-full left-0 right-0 mt-2 bg-navy-800 border border-gold-500/30 rounded-xl shadow-2xl overflow-hidden z-20 max-h-60 overflow-y-auto divide-y divide-slate-700/50">
+                    <!-- 搜尋結果動態插入 -->
+                </div>
+            </div>
+
+            <!-- 無搜尋結果提示 -->
+            <div id="no-result-msg" class="hidden text-center py-6 px-4 bg-navy-800/50 rounded-xl border border-slate-700">
+                <i class="fa-solid fa-circle-exclamation text-amber-400 text-2xl mb-2"></i>
+                <p class="text-slate-300 font-medium">查無此姓名的賓客資料</p>
+                <p class="text-slate-500 text-xs mt-1">請確認輸入字詞是否正確，或至服務台尋求工作人員協助</p>
+            </div>
+
+            <!-- 提示說明卡片 -->
+            <div class="mt-8 p-4 rounded-xl bg-navy-800/40 border border-gold-500/10 text-xs text-slate-400 leading-relaxed text-center">
+                <p class="flex items-center justify-center gap-1 text-gold-400/90 font-medium mb-1">
+                    <i class="fa-solid fa-circle-info"></i> 報到小提醒
+                </p>
+                查詢後請至專屬的「報到窗口」領取名牌與宴席資料，隨後即可前往指定桌位。
+            </div>
+        </section>
+
+
+        <!-- ================= 頁籤 2：現場 QR Code 產生器 ================= -->
+        <section id="tab-qrcode" class="hidden w-full max-w-xl mx-auto py-6">
+            <div class="bg-navy-800/80 rounded-2xl p-6 border border-gold-500/30 shadow-xl">
+                <div class="text-center mb-6">
+                    <h2 class="font-serif text-2xl font-bold gold-gradient-text mb-1">現場掃碼查詢 QR Code</h2>
+                    <p class="text-xs text-slate-400">請輸入此網頁部署後的 URL，產生專屬 QR Code 供現場民眾掃描</p>
+                </div>
+
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <label class="block text-xs font-medium text-gold-300 mb-1">部署網址 (URL)</label>
+                        <div class="flex gap-2">
+                            <input type="url" id="qr-url-input" class="flex-grow px-3 py-2 rounded-lg bg-navy-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-gold-400" placeholder="https://example.com">
+                            <button onclick="generateQRCode()" class="gold-btn px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1">
+                                <i class="fa-solid fa-rotate"></i> 更新
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- QR Code 顯示卡片 (可列印區域) -->
+                <div id="print-qr-area" class="bg-white text-navy-950 p-6 rounded-xl text-center shadow-inner flex flex-col items-center">
+                    <h3 class="font-serif font-bold text-xl tracking-wider mb-1">貴賓報到與桌位查詢</h3>
+                    <p class="text-xs text-slate-600 mb-4">請用手機相機掃描 QR Code 搜尋您的座位</p>
+                    
+                    <div id="qrcode-canvas-container" class="p-3 bg-white border border-slate-200 rounded-lg shadow-sm my-2">
+                        <!-- QR Code 將由 JS 生成於此 -->
+                    </div>
+
+                    <p class="text-xs font-bold text-gold-600 mt-3 tracking-widest uppercase">Welcome To Our Event</p>
+                </div>
+
+                <div class="mt-6 flex gap-3 justify-center">
+                    <button onclick="window.print()" class="px-5 py-2.5 rounded-xl border border-gold-500/40 text-gold-300 hover:bg-gold-500/10 text-sm font-medium transition flex items-center gap-2">
+                        <i class="fa-solid fa-print"></i> 列印告示海報
+                    </button>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ================= 頁籤 3：名單管理 (含智能無亂碼 CSV 解析) ================= -->
+        <section id="tab-admin" class="hidden w-full py-2">
+            <div class="bg-navy-800/90 rounded-2xl p-4 sm:p-6 border border-gold-500/30 shadow-xl mb-6">
+                <!-- 標頭與核心操作按鈕 -->
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 pb-4 border-b border-slate-700/60">
+                    <div>
+                        <h2 class="font-serif text-2xl font-bold gold-gradient-text">賓客名單管理</h2>
+                        <p class="text-xs text-slate-400 mt-1">目前共 <span id="guest-count" class="text-gold-400 font-bold text-sm">0</span> 位賓客資料</p>
+                    </div>
+
+                    <!-- 操作按鈕群 -->
+                    <div class="flex flex-wrap gap-2 w-full lg:w-auto">
+                        <button onclick="confirmLoadSampleData()" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium rounded-lg border border-slate-500 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-flask text-gold-400"></i> 載入範例資料
+                        </button>
+                        <button onclick="openCsvModal()" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium rounded-lg border border-slate-500 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-csv text-green-400"></i> CSV / Excel 匯入
+                        </button>
+                        <button onclick="confirmClearAll()" class="px-3 py-2 bg-red-950/80 hover:bg-red-900 text-red-300 text-xs font-medium rounded-lg border border-red-800 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-trash-can"></i> 清空全部
+                        </button>
+                        <button onclick="openAddModal()" class="gold-btn px-4 py-2 text-xs font-bold rounded-lg flex items-center gap-1.5 ml-auto lg:ml-0 shadow">
+                            <i class="fa-solid fa-user-plus"></i> 手動新增賓客
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 搜尋與篩選名單 -->
+                <div class="mb-4">
+                    <div class="relative">
+                        <i class="fa-solid fa-magnifying-glass text-slate-500 text-xs absolute left-3 top-3"></i>
+                        <input type="text" id="admin-search-input" placeholder="過濾姓名..." oninput="renderAdminTable()" 
+                            class="w-full pl-8 pr-3 py-2 bg-navy-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-gold-400">
+                    </div>
+                </div>
+
+                <!-- 名單表格 -->
+                <div class="overflow-x-auto rounded-xl border border-slate-700/80">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="bg-navy-950 text-gold-300 text-xs uppercase border-b border-slate-700">
+                            <tr>
+                                <th class="py-3 px-4 font-semibold">姓名</th>
+                                <th class="py-3 px-4 font-semibold">報到窗口號碼</th>
+                                <th class="py-3 px-4 font-semibold">桌位號碼</th>
+                                <th class="py-3 px-4 text-center font-semibold">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="guest-table-body" class="divide-y divide-slate-700/50 bg-navy-900/40">
+                            <!-- 動態渲染資料 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 頁尾 -->
+    <footer class="border-t border-gold-500/10 py-4 text-center text-xs text-slate-500 no-print">
+        <p>© 盛會賓客報到與桌位查詢系統</p>
+    </footer>
+
+
+    <!-- ================= 彈窗 1：賓客查詢結果 Modal (大字體醒目卡片) ================= -->
+    <div id="result-modal" class="fixed inset-0 bg-black/80 modal-blur z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-navy-800 border-2 border-gold-500/60 rounded-2xl w-full max-w-md p-6 sm:p-8 relative gold-border-glow shadow-2xl">
+            <!-- 關閉按鈕 -->
+            <button onclick="closeResultModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+
+            <!-- 標頭 -->
+            <div class="text-center mb-6">
+                <span class="inline-block px-3 py-1 bg-gold-500/10 border border-gold-500/30 text-gold-300 text-xs font-semibold rounded-full mb-2">賓客報到資訊</span>
+                <h2 id="modal-guest-name" class="font-serif text-3xl font-bold text-white tracking-wide">王大明</h2>
+                <p class="text-xs text-slate-400 mt-1">尊榮貴賓，歡迎蒞臨！您的桌位與報到窗口如下</p>
+            </div>
+
+            <!-- 兩項核心資訊大數字卡片 -->
+            <div class="space-y-4">
+                <!-- 報到窗口號碼 -->
+                <div class="bg-gradient-to-br from-navy-900 to-navy-950 border border-gold-500/40 rounded-xl p-5 text-center relative overflow-hidden shadow-inner">
+                    <p class="text-xs text-gold-300 uppercase tracking-widest font-semibold mb-1">
+                        <i class="fa-solid fa-clipboard-user mr-1 text-gold-400"></i> 報到窗口號碼
+                    </p>
+                    <div id="modal-window-no" class="text-3xl sm:text-4xl font-extrabold text-white font-serif tracking-tight my-1">
+                        窗口 1
+                    </div>
+                </div>
+
+                <!-- 桌位號碼 -->
+                <div class="bg-gradient-to-br from-navy-900 to-navy-950 border border-gold-500/40 rounded-xl p-5 text-center relative overflow-hidden shadow-inner">
+                    <p class="text-xs text-gold-300 uppercase tracking-widest font-semibold mb-1">
+                        <i class="fa-solid fa-chair mr-1 text-gold-400"></i> 桌位號碼
+                    </p>
+                    <div id="modal-table-no" class="text-3xl sm:text-4xl font-extrabold text-gold-400 font-serif tracking-tight my-1">
+                        第 8 桌
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="closeResultModal()" class="gold-btn w-full py-3.5 rounded-xl font-bold text-base mt-6 shadow-lg tracking-wider">
+                確 認 關 閉
+            </button>
+        </div>
+    </div>
+
+
+    <!-- ================= 彈窗 2：新增 / 編輯賓客 Modal ================= -->
+    <div id="edit-modal" class="fixed inset-0 bg-black/80 modal-blur z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-navy-800 border border-gold-500/40 rounded-2xl w-full max-w-md p-6 relative shadow-2xl">
+            <button onclick="closeEditModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <h3 id="edit-modal-title" class="font-serif text-xl font-bold gold-gradient-text mb-4">新增賓客資料</h3>
+
+            <form id="guest-form" onsubmit="saveGuest(event)" class="space-y-4">
+                <input type="hidden" id="edit-guest-id">
+                
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">姓名 <span class="text-red-400">*</span></label>
+                    <input type="text" id="input-name" required placeholder="例如：王大明" class="w-full px-3 py-2 bg-navy-900 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-gold-400">
+                </div>
+
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">報到窗口號碼 <span class="text-red-400">*</span></label>
+                    <input type="text" id="input-window" required placeholder="例如：窗口 1 或 A 報到處" class="w-full px-3 py-2 bg-navy-900 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-gold-400">
+                </div>
+
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">桌位號碼 <span class="text-red-400">*</span></label>
+                    <input type="text" id="input-table" required placeholder="例如：第 8 桌 / 主桌-01" class="w-full px-3 py-2 bg-navy-900 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-gold-400">
+                </div>
+
+                <div class="flex gap-2 justify-end pt-3">
+                    <button type="button" onclick="closeEditModal()" class="px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-700">取消</button>
+                    <button type="submit" class="gold-btn px-5 py-2 rounded-lg text-xs font-bold">儲存存檔</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- ================= 彈窗 3：CSV / Excel 匯入 Modal (自動相容 UTF-8 / Big5 解碼) ================= -->
+    <div id="csv-modal" class="fixed inset-0 bg-black/80 modal-blur z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-navy-800 border border-gold-500/40 rounded-2xl w-full max-w-lg p-6 relative shadow-2xl">
+            <button onclick="closeCsvModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <h3 class="font-serif text-xl font-bold gold-gradient-text mb-1">CSV / Excel 批量匯入</h3>
+            <p class="text-xs text-slate-400 mb-4">支援自動修復 Excel CSV 亂碼 (Big5/UTF-8 通用)</p>
+
+            <div class="space-y-4">
+                <!-- 下載 BOM 範例檔按鈕 -->
+                <div class="bg-navy-950/80 p-3 rounded-lg border border-gold-500/20 flex justify-between items-center">
+                    <div class="text-xs">
+                        <p class="text-gold-300 font-medium">需要標準 Excel 範例檔？</p>
+                        <p class="text-slate-500">下載內建 UTF-8 BOM 樣板，Excel 開啟不亂碼</p>
+                    </div>
+                    <button onclick="downloadCsvTemplate()" class="px-3 py-1.5 bg-gold-500/20 hover:bg-gold-500/30 text-gold-300 border border-gold-500/40 text-xs font-medium rounded transition flex items-center gap-1">
+                        <i class="fa-solid fa-download"></i> 下載範例
+                    </button>
+                </div>
+
+                <!-- 選擇 CSV 檔案 -->
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">方式一：上傳 CSV 檔案</label>
+                    <input type="file" id="csv-file-input" accept=".csv" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-gold-500/20 file:text-gold-300 hover:file:bg-gold-500/30">
+                </div>
+
+                <div class="text-center text-xs text-slate-500 my-1">— 或 —</div>
+
+                <!-- 直接複製貼上 -->
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1 font-medium">方式二：直接從 Excel 複製表格貼上</label>
+                    <textarea id="csv-text-input" rows="4" placeholder="王大明&#9;窗口 1&#9;主桌 - 01&#10;李美玲&#9;窗口 1&#9;第 2 桌" class="w-full p-3 bg-navy-900 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-600 focus:outline-none focus:border-gold-400 font-mono"></textarea>
+                    <p class="text-[10px] text-slate-500 mt-1">支援由 Excel 複製直接貼上（以 Tab 或逗號分隔均可）</p>
+                </div>
+
+                <div class="flex gap-2 justify-end pt-2">
+                    <button type="button" onclick="closeCsvModal()" class="px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-700">取消</button>
+                    <button type="button" onclick="processCsvImport()" class="gold-btn px-5 py-2 rounded-lg text-xs font-bold">開始匯入</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ================= 彈窗 4：通用確認 Modal (防阻原生 alert 被擋) ================= -->
+    <div id="confirm-modal" class="fixed inset-0 bg-black/80 modal-blur z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-navy-800 border border-gold-500/40 rounded-xl w-full max-w-sm p-5 text-center shadow-2xl">
+            <i id="confirm-icon" class="fa-solid fa-circle-question text-3xl text-gold-400 mb-3"></i>
+            <h4 id="confirm-title" class="text-base font-bold text-white mb-2">確認執行動作？</h4>
+            <p id="confirm-msg" class="text-xs text-slate-300 mb-5 leading-relaxed">請確認是否執行此動作。</p>
+            
+            <div class="flex gap-2 justify-center">
+                <button onclick="closeConfirmModal(false)" class="px-4 py-2 rounded-lg text-xs font-medium bg-slate-700 text-slate-300 hover:bg-slate-600">取消</button>
+                <button id="confirm-ok-btn" onclick="closeConfirmModal(true)" class="gold-btn px-5 py-2 rounded-lg text-xs font-bold">確認</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- JAVASCRIPT 邏輯與修復 -->
+    <script>
+        // 預設範例資料集
+        const DEFAULT_GUESTS = [
+           
+{ id: '1', name: '潘聖文', windowNo: '4號窗口', tableNo: '17桌/A6-1' },
+{ id: '2', name: '潘聖文-2', windowNo: '4號窗口', tableNo: '17桌/A6-1' },
+{ id: '3', name: '潘聖文-3', windowNo: '4號窗口', tableNo: '17桌/A6-1' },
+{ id: '4', name: '陳勇廷', windowNo: '4號窗口', tableNo: '17桌/A6-1' },
+{ id: '5', name: '陳勇廷-2', windowNo: '4號窗口', tableNo: '17桌/A6-1' },
+{ id: '6', name: '陳勇廷-3', windowNo: '4號窗口', tableNo: '17桌/A6-1' },
+{ id: '7', name: '劉素瑜', windowNo: '4號窗口', tableNo: '17桌/A6-1' },
+{ id: '8', name: '劉素瑜-2', windowNo: '4號窗口', tableNo: '17桌/A6-1' },
+{ id: '9', name: '莊曜嘉', windowNo: '4號窗口', tableNo: '17桌/A6-1' },
+{ id: '10', name: '莊曜嘉-2', windowNo: '4號窗口', tableNo: '17桌/A6-1' },
+{ id: '11', name: '劉佳榕', windowNo: '4號窗口', tableNo: '18桌/A6-2' },
+{ id: '12', name: '劉佳榕-2', windowNo: '4號窗口', tableNo: '18桌/A6-2' },
+{ id: '13', name: '劉佳榕-3', windowNo: '4號窗口', tableNo: '18桌/A6-2' },
+{ id: '14', name: '劉佳榕-4', windowNo: '4號窗口', tableNo: '18桌/A6-2' },
+{ id: '15', name: '劉佳榕-5', windowNo: '4號窗口', tableNo: '18桌/A6-2' },
+{ id: '16', name: '劉佳榕-6', windowNo: '4號窗口', tableNo: '18桌/A6-2' },
+{ id: '17', name: '劉佳榕-7', windowNo: '4號窗口', tableNo: '18桌/A6-2' },
+{ id: '18', name: '劉佳榕-8', windowNo: '4號窗口', tableNo: '18桌/A6-2' },
+{ id: '19', name: '鐘佳良', windowNo: '4號窗口', tableNo: '18桌/A6-2' },
+{ id: '20', name: '張簡元翔', windowNo: '4號窗口', tableNo: '18桌/A6-2' },
+{ id: '21', name: '張盈誌', windowNo: '4號窗口', tableNo: '23桌/A6-3' },
+{ id: '22', name: '張盈誌-2', windowNo: '4號窗口', tableNo: '23桌/A6-3' },
+{ id: '23', name: '楊明蒼', windowNo: '4號窗口', tableNo: '23桌/A6-3' },
+{ id: '24', name: '楊明蒼-2', windowNo: '4號窗口', tableNo: '23桌/A6-3' },
+{ id: '25', name: '楊明蒼-3', windowNo: '4號窗口', tableNo: '23桌/A6-3' },
+{ id: '26', name: '呂佳萱', windowNo: '4號窗口', tableNo: '23桌/A6-3' },
+{ id: '27', name: '呂佳萱-2', windowNo: '4號窗口', tableNo: '23桌/A6-3' },
+{ id: '28', name: '張百村', windowNo: '4號窗口', tableNo: '23桌/A6-3' },
+{ id: '29', name: '張百村-2', windowNo: '4號窗口', tableNo: '23桌/A6-3' },
+{ id: '30', name: '張百村-3', windowNo: '4號窗口', tableNo: '23桌/A6-3' },
+{ id: '31', name: '賴奕璇', windowNo: '6號窗口', tableNo: '40桌/人資-1' },
+{ id: '32', name: '賴奕璇-2', windowNo: '6號窗口', tableNo: '40桌/人資-1' },
+{ id: '33', name: '賴奕璇-3', windowNo: '6號窗口', tableNo: '40桌/人資-1' },
+{ id: '34', name: '賴奕璇-4', windowNo: '6號窗口', tableNo: '40桌/人資-1' },
+{ id: '35', name: '賴奕璇-5', windowNo: '6號窗口', tableNo: '40桌/人資-1' },
+{ id: '36', name: '賴奕璇-6', windowNo: '6號窗口', tableNo: '40桌/人資-1' },
+{ id: '37', name: '賴奕璇-7', windowNo: '6號窗口', tableNo: '40桌/人資-1' },
+{ id: '38', name: '賴奕璇-8', windowNo: '6號窗口', tableNo: '40桌/人資-1' },
+{ id: '39', name: '賴奕璇-9', windowNo: '6號窗口', tableNo: '40桌/人資-1' },
+{ id: '40', name: '賴奕璇-10', windowNo: '6號窗口', tableNo: '40桌/人資-1' },
+{ id: '41', name: '賴奕璇-11', windowNo: '6號窗口', tableNo: '41桌/人資-2' },
+{ id: '42', name: '賴奕璇-12', windowNo: '6號窗口', tableNo: '41桌/人資-2' },
+{ id: '43', name: '賴奕璇-13', windowNo: '6號窗口', tableNo: '41桌/人資-2' },
+{ id: '44', name: '賴奕璇-14', windowNo: '6號窗口', tableNo: '41桌/人資-2' },
+{ id: '45', name: '賴奕璇-15', windowNo: '6號窗口', tableNo: '41桌/人資-2' },
+{ id: '46', name: '賴奕璇-16', windowNo: '6號窗口', tableNo: '41桌/人資-2' },
+{ id: '47', name: '賴奕璇-17', windowNo: '6號窗口', tableNo: '41桌/人資-2' },
+{ id: '48', name: '賴奕璇-18', windowNo: '6號窗口', tableNo: '41桌/人資-2' },
+{ id: '49', name: '賴奕璇-19', windowNo: '6號窗口', tableNo: '41桌/人資-2' },
+{ id: '50', name: '賴奕璇-20', windowNo: '6號窗口', tableNo: '41桌/人資-2' },
+{ id: '51', name: '賴奕璇-21', windowNo: '6號窗口', tableNo: '46桌/人資-3' },
+{ id: '52', name: '賴奕璇-22', windowNo: '6號窗口', tableNo: '46桌/人資-3' },
+{ id: '53', name: '賴奕璇-23', windowNo: '6號窗口', tableNo: '46桌/人資-3' },
+{ id: '54', name: '賴奕璇-24', windowNo: '6號窗口', tableNo: '46桌/人資-3' },
+{ id: '55', name: '賴奕璇-25', windowNo: '6號窗口', tableNo: '46桌/人資-3' },
+{ id: '56', name: '賴奕璇-26', windowNo: '6號窗口', tableNo: '46桌/人資-3' },
+{ id: '57', name: '賴奕璇-27', windowNo: '6號窗口', tableNo: '46桌/人資-3' },
+{ id: '58', name: '賴奕璇-28', windowNo: '6號窗口', tableNo: '46桌/人資-3' },
+{ id: '59', name: '賴奕璇-29', windowNo: '6號窗口', tableNo: '46桌/人資-3' },
+{ id: '60', name: '陳香菊', windowNo: '6號窗口', tableNo: '52桌/人資-4' },
+{ id: '61', name: '陳香菊-2', windowNo: '6號窗口', tableNo: '52桌/人資-4' },
+{ id: '62', name: '林臻醴', windowNo: '6號窗口', tableNo: '52桌/人資-4' },
+{ id: '63', name: '鄭筌允', windowNo: '6號窗口', tableNo: '52桌/人資-4' },
+{ id: '64', name: '鄭筌允-2', windowNo: '6號窗口', tableNo: '52桌/人資-4' },
+{ id: '65', name: '鄭筌允-3', windowNo: '6號窗口', tableNo: '52桌/人資-4' },
+{ id: '66', name: '李孟嫺', windowNo: '6號窗口', tableNo: '52桌/人資-4' },
+{ id: '67', name: '楊詠雯', windowNo: '6號窗口', tableNo: '52桌/人資-4' },
+{ id: '68', name: '王珮芬', windowNo: '6號窗口', tableNo: '52桌/人資-4' },
+{ id: '69', name: '陳詩棻', windowNo: '2號窗口', tableNo: '90桌/土木' },
+{ id: '70', name: '陳詩棻-2', windowNo: '2號窗口', tableNo: '90桌/土木' },
+{ id: '71', name: '陳詩棻-3', windowNo: '2號窗口', tableNo: '90桌/土木' },
+{ id: '72', name: '洪逸如', windowNo: '2號窗口', tableNo: '90桌/土木' },
+{ id: '73', name: '洪逸如-2', windowNo: '2號窗口', tableNo: '90桌/土木' },
+{ id: '74', name: '洪逸如-3', windowNo: '2號窗口', tableNo: '90桌/土木' },
+{ id: '75', name: '鄧湘怡', windowNo: '2號窗口', tableNo: '90桌/土木' },
+{ id: '76', name: '鄧湘怡-2', windowNo: '2號窗口', tableNo: '90桌/土木' },
+{ id: '77', name: '蔡孟頻', windowNo: '2號窗口', tableNo: '90桌/土木' },
+{ id: '78', name: '曾慶恒', windowNo: '2號窗口', tableNo: '90桌/土木' },
+{ id: '79', name: '陳文宏', windowNo: '2號窗口', tableNo: '公關桌/工安1' },
+{ id: '80', name: '陳文宏-2', windowNo: '2號窗口', tableNo: '公關桌/工安1' },
+{ id: '81', name: '陳文宏-3', windowNo: '2號窗口', tableNo: '公關桌/工安1' },
+{ id: '82', name: '陳文宏-4', windowNo: '2號窗口', tableNo: '公關桌/工安1' },
+{ id: '83', name: '陳文宏-5', windowNo: '2號窗口', tableNo: '公關桌/工安1' },
+{ id: '84', name: '陳文宏-6', windowNo: '2號窗口', tableNo: '公關桌/工安1' },
+{ id: '85', name: '陳文宏-7', windowNo: '2號窗口', tableNo: '公關桌/工安1' },
+{ id: '86', name: '陳文宏-8', windowNo: '2號窗口', tableNo: '公關桌/工安1' },
+{ id: '87', name: '陳文宏-9', windowNo: '2號窗口', tableNo: '公關桌/工安1' },
+{ id: '88', name: '陳文宏-10', windowNo: '2號窗口', tableNo: '公關桌/工安1' },
+{ id: '89', name: '陳文宏-11', windowNo: '2號窗口', tableNo: '4桌/工安-2' },
+{ id: '90', name: '陳文宏-12', windowNo: '2號窗口', tableNo: '4桌/工安-2' },
+{ id: '91', name: '陳文宏-13', windowNo: '2號窗口', tableNo: '4桌/工安-2' },
+{ id: '92', name: '陳文宏-14', windowNo: '2號窗口', tableNo: '4桌/工安-2' },
+{ id: '93', name: '陳文宏-15', windowNo: '2號窗口', tableNo: '4桌/工安-2' },
+{ id: '94', name: '陳文宏-16', windowNo: '2號窗口', tableNo: '4桌/工安-2' },
+{ id: '95', name: '陳文宏-17', windowNo: '2號窗口', tableNo: '4桌/工安-2' },
+{ id: '96', name: '陳文宏-18', windowNo: '2號窗口', tableNo: '4桌/工安-2' },
+{ id: '97', name: '陳文宏-19', windowNo: '2號窗口', tableNo: '4桌/工安-2' },
+{ id: '98', name: '陳文宏-20', windowNo: '2號窗口', tableNo: '4桌/工安-2' },
+{ id: '99', name: '李世勇', windowNo: '2號窗口', tableNo: '5桌/工安-3' },
+{ id: '100', name: '黨建皓', windowNo: '2號窗口', tableNo: '5桌/工安-3' },
+{ id: '101', name: '黨建皓-2', windowNo: '2號窗口', tableNo: '5桌/工安-3' },
+{ id: '102', name: '黨建皓-3', windowNo: '2號窗口', tableNo: '5桌/工安-3' },
+{ id: '103', name: '黨建皓-4', windowNo: '2號窗口', tableNo: '5桌/工安-3' },
+{ id: '104', name: '黨建皓-5', windowNo: '2號窗口', tableNo: '5桌/工安-3' },
+{ id: '105', name: '蔡瑾賢', windowNo: '2號窗口', tableNo: '5桌/工安-3' },
+{ id: '106', name: '蔡瑾賢-2', windowNo: '2號窗口', tableNo: '5桌/工安-3' },
+{ id: '107', name: '蔡瑾賢-3', windowNo: '2號窗口', tableNo: '5桌/工安-3' },
+{ id: '108', name: '蔡瑾賢-4', windowNo: '2號窗口', tableNo: '5桌/工安-3' },
+{ id: '109', name: '羅于翔', windowNo: '2號窗口', tableNo: '6桌/工安-4' },
+{ id: '110', name: '林彥呈', windowNo: '2號窗口', tableNo: '6桌/工安-4' },
+{ id: '111', name: '林彥呈-2', windowNo: '2號窗口', tableNo: '6桌/工安-4' },
+{ id: '112', name: '張蟬如', windowNo: '2號窗口', tableNo: '6桌/工安-4' },
+{ id: '113', name: '張蟬如-2', windowNo: '2號窗口', tableNo: '6桌/工安-4' },
+{ id: '114', name: '彭佳雯', windowNo: '2號窗口', tableNo: '6桌/工安-4' },
+{ id: '115', name: '張羅娜', windowNo: '2號窗口', tableNo: '6桌/工安-4' },
+{ id: '116', name: '張羅娜-2', windowNo: '2號窗口', tableNo: '6桌/工安-4' },
+{ id: '117', name: '張羅娜-3', windowNo: '2號窗口', tableNo: '6桌/工安-4' },
+{ id: '118', name: '張羅娜-4', windowNo: '2號窗口', tableNo: '6桌/工安-4' },
+{ id: '119', name: '簡虹汝', windowNo: '2號窗口', tableNo: '10桌/工安-5' },
+{ id: '120', name: '簡虹汝-2', windowNo: '2號窗口', tableNo: '10桌/工安-5' },
+{ id: '121', name: '簡虹汝-3', windowNo: '2號窗口', tableNo: '10桌/工安-5' },
+{ id: '122', name: '簡虹汝-4', windowNo: '2號窗口', tableNo: '10桌/工安-5' },
+{ id: '123', name: '簡虹汝-5', windowNo: '2號窗口', tableNo: '10桌/工安-5' },
+{ id: '124', name: '簡虹汝-6', windowNo: '2號窗口', tableNo: '10桌/工安-5' },
+{ id: '125', name: '簡虹汝-7', windowNo: '2號窗口', tableNo: '10桌/工安-5' },
+{ id: '126', name: '簡虹汝-8', windowNo: '2號窗口', tableNo: '10桌/工安-5' },
+{ id: '127', name: '簡虹汝-9', windowNo: '2號窗口', tableNo: '10桌/工安-5' },
+{ id: '128', name: '簡虹汝-10', windowNo: '2號窗口', tableNo: '10桌/工安-5' },
+{ id: '129', name: '簡虹汝-11', windowNo: '2號窗口', tableNo: '11桌/工安-6' },
+{ id: '130', name: '簡虹汝-12', windowNo: '2號窗口', tableNo: '11桌/工安-6' },
+{ id: '131', name: '蔡吳秀雲', windowNo: '2號窗口', tableNo: '11桌/工安-6' },
+{ id: '132', name: '蔡吳秀雲-2', windowNo: '2號窗口', tableNo: '11桌/工安-6' },
+{ id: '133', name: '蔡吳秀雲-3', windowNo: '2號窗口', tableNo: '11桌/工安-6' },
+{ id: '134', name: '蔡吳秀雲-4', windowNo: '2號窗口', tableNo: '11桌/工安-6' },
+{ id: '135', name: '蔡吳秀雲-5', windowNo: '2號窗口', tableNo: '11桌/工安-6' },
+{ id: '136', name: '蔡吳秀雲-6', windowNo: '2號窗口', tableNo: '11桌/工安-6' },
+{ id: '137', name: '洪麗香', windowNo: '2號窗口', tableNo: '11桌/工安-6' },
+{ id: '138', name: '洪麗香-2', windowNo: '2號窗口', tableNo: '11桌/工安-6' },
+{ id: '139', name: '洪麗香-3', windowNo: '2號窗口', tableNo: '12桌/工安-7' },
+{ id: '140', name: '洪麗香-4', windowNo: '2號窗口', tableNo: '12桌/工安-7' },
+{ id: '141', name: '洪麗香-5', windowNo: '2號窗口', tableNo: '12桌/工安-7' },
+{ id: '142', name: '洪麗香-6', windowNo: '2號窗口', tableNo: '12桌/工安-7' },
+{ id: '143', name: '洪麗香-7', windowNo: '2號窗口', tableNo: '12桌/工安-7' },
+{ id: '144', name: '洪麗香-8', windowNo: '2號窗口', tableNo: '12桌/工安-7' },
+{ id: '145', name: '洪麗香-9', windowNo: '2號窗口', tableNo: '12桌/工安-7' },
+{ id: '146', name: '洪麗香-10', windowNo: '2號窗口', tableNo: '12桌/工安-7' },
+{ id: '147', name: '洪麗香-11', windowNo: '2號窗口', tableNo: '12桌/工安-7' },
+{ id: '148', name: '洪麗香-12', windowNo: '2號窗口', tableNo: '12桌/工安-7' },
+{ id: '149', name: '洪麗香-13', windowNo: '2號窗口', tableNo: '12桌/工安-7' },
+{ id: '150', name: '蕭進文', windowNo: '2號窗口', tableNo: '16桌/工安-8' },
+{ id: '151', name: '蕭進文-2', windowNo: '2號窗口', tableNo: '16桌/工安-8' },
+{ id: '152', name: '蕭進文-3', windowNo: '2號窗口', tableNo: '16桌/工安-8' },
+{ id: '153', name: '蕭進文-4', windowNo: '2號窗口', tableNo: '16桌/工安-8' },
+{ id: '154', name: '劉國忠-2', windowNo: '2號窗口', tableNo: '16桌/工安-8' },
+{ id: '155', name: '劉國忠-3', windowNo: '2號窗口', tableNo: '16桌/工安-8' },
+{ id: '156', name: '劉國忠-4', windowNo: '2號窗口', tableNo: '16桌/工安-8' },
+{ id: '157', name: '邱唯誌', windowNo: '3號窗口', tableNo: '21桌/工務' },
+{ id: '158', name: '邱唯誌-2', windowNo: '3號窗口', tableNo: '21桌/工務' },
+{ id: '159', name: '邱唯誌-3', windowNo: '3號窗口', tableNo: '21桌/工務' },
+{ id: '160', name: '邱唯誌-4', windowNo: '3號窗口', tableNo: '21桌/工務' },
+{ id: '161', name: '趙惠珍', windowNo: '3號窗口', tableNo: '21桌/工務' },
+{ id: '162', name: '趙惠珍-2', windowNo: '3號窗口', tableNo: '21桌/工務' },
+{ id: '163', name: '趙惠珍-3', windowNo: '3號窗口', tableNo: '21桌/工務' },
+{ id: '164', name: '陳品樺', windowNo: '3號窗口', tableNo: '21桌/工務' },
+{ id: '165', name: '陳品樺-2', windowNo: '3號窗口', tableNo: '21桌/工務' },
+{ id: '166', name: '陳品樺-3', windowNo: '3號窗口', tableNo: '21桌/工務' },
+{ id: '167', name: '蘇再生', windowNo: '3號窗口', tableNo: '20桌/切割' },
+{ id: '168', name: '陳明祥', windowNo: '3號窗口', tableNo: '20桌/切割' },
+{ id: '169', name: '陳明祥-2', windowNo: '3號窗口', tableNo: '20桌/切割' },
+{ id: '170', name: '陳明祥-3', windowNo: '3號窗口', tableNo: '20桌/切割' },
+{ id: '171', name: '陳明祥-4', windowNo: '3號窗口', tableNo: '20桌/切割' },
+{ id: '172', name: '陳文銘', windowNo: '3號窗口', tableNo: '20桌/切割' },
+{ id: '173', name: '陳文銘-2', windowNo: '3號窗口', tableNo: '20桌/切割' },
+{ id: '174', name: '胡正杰', windowNo: '3號窗口', tableNo: '20桌/切割' },
+{ id: '175', name: '胡正杰-2', windowNo: '3號窗口', tableNo: '20桌/切割' },
+{ id: '176', name: '林高立', windowNo: '3號窗口', tableNo: '20桌/切割' },
+{ id: '177', name: '李亞鍁', windowNo: '3號窗口', tableNo: '84桌/方法-1' },
+{ id: '178', name: '李亞鍁-2', windowNo: '3號窗口', tableNo: '84桌/方法-1' },
+{ id: '179', name: '李亞鍁-3', windowNo: '3號窗口', tableNo: '84桌/方法-1' },
+{ id: '180', name: '李亞鍁-4', windowNo: '3號窗口', tableNo: '84桌/方法-1' },
+{ id: '181', name: '陳柏劭', windowNo: '3號窗口', tableNo: '84桌/方法-1' },
+{ id: '182', name: '蔡佳臻', windowNo: '3號窗口', tableNo: '84桌/方法-1' },
+{ id: '183', name: '郭于寧', windowNo: '3號窗口', tableNo: '84桌/方法-1' },
+{ id: '184', name: '郭于寧-2', windowNo: '3號窗口', tableNo: '84桌/方法-1' },
+{ id: '185', name: '郭于寧-3', windowNo: '3號窗口', tableNo: '84桌/方法-1' },
+{ id: '186', name: '郭于寧-4', windowNo: '3號窗口', tableNo: '84桌/方法-1' },
+{ id: '187', name: '范淑茜', windowNo: '3號窗口', tableNo: '83桌/方法-2' },
+{ id: '188', name: '范淑茜-2', windowNo: '3號窗口', tableNo: '83桌/方法-2' },
+{ id: '189', name: '范淑茜-3', windowNo: '3號窗口', tableNo: '83桌/方法-2' },
+{ id: '190', name: '范淑茜-4', windowNo: '3號窗口', tableNo: '83桌/方法-2' },
+{ id: '191', name: '范淑茜-5', windowNo: '3號窗口', tableNo: '83桌/方法-2' },
+{ id: '192', name: '陳宇綸', windowNo: '3號窗口', tableNo: '83桌/方法-2' },
+{ id: '193', name: '楊偉泰', windowNo: '3號窗口', tableNo: '83桌/方法-2' },
+{ id: '194', name: '廖志榮', windowNo: 'VVIP(無須報到)', tableNo: '主桌' },
+{ id: '195', name: '廖品傑', windowNo: 'VVIP(無須報到)', tableNo: '主桌' },
+{ id: '196', name: '廖麒翔', windowNo: 'VVIP(無須報到)', tableNo: '主桌' },
+{ id: '197', name: '邱永豐', windowNo: '4號窗口', tableNo: '22桌/台中-1' },
+{ id: '198', name: '周柏森', windowNo: '4號窗口', tableNo: '22桌/台中-1' },
+{ id: '199', name: '周柏森-2', windowNo: '4號窗口', tableNo: '22桌/台中-1' },
+{ id: '200', name: '李祤漩', windowNo: '4號窗口', tableNo: '22桌/台中-1' },
+{ id: '201', name: '陳志豐', windowNo: '4號窗口', tableNo: '22桌/台中-1' },
+{ id: '202', name: '張玉華', windowNo: '4號窗口', tableNo: '22桌/台中-1' },
+{ id: '203', name: '張玉華-2', windowNo: '4號窗口', tableNo: '22桌/台中-1' },
+{ id: '204', name: '顏佩玲', windowNo: '4號窗口', tableNo: '22桌/台中-1' },
+{ id: '205', name: '陳綵宸', windowNo: '4號窗口', tableNo: '23桌/台中-2' },
+{ id: '206', name: '黃耀震', windowNo: '4號窗口', tableNo: '23桌/台中-2' },
+{ id: '207', name: '黃耀震-2', windowNo: '4號窗口', tableNo: '23桌/台中-2' },
+{ id: '208', name: '黃耀震-3', windowNo: '4號窗口', tableNo: '23桌/台中-2' },
+{ id: '209', name: '黃耀震-4', windowNo: '4號窗口', tableNo: '23桌/台中-2' },
+{ id: '210', name: '黃耀震-5', windowNo: '4號窗口', tableNo: '23桌/台中-2' },
+{ id: '211', name: '黃耀震-6', windowNo: '4號窗口', tableNo: '23桌/台中-2' },
+{ id: '212', name: '黃耀震-7', windowNo: '4號窗口', tableNo: '23桌/台中-2' },
+{ id: '213', name: '柯業鼎', windowNo: '4號窗口', tableNo: '23桌/台中-2' },
+{ id: '214', name: '柯業鼎-2', windowNo: '4號窗口', tableNo: '23桌/台中-2' },
+{ id: '215', name: '𡍼珮君', windowNo: '4號窗口', tableNo: '28桌/永安' },
+{ id: '216', name: '𡍼珮君-2', windowNo: '4號窗口', tableNo: '28桌/永安' },
+{ id: '217', name: '𡍼珮君-3', windowNo: '4號窗口', tableNo: '28桌/永安' },
+{ id: '218', name: '𡍼珮君-4', windowNo: '4號窗口', tableNo: '28桌/永安' },
+{ id: '219', name: '李政家', windowNo: '4號窗口', tableNo: '28桌/永安' },
+{ id: '220', name: '李清吉', windowNo: '4號窗口', tableNo: '28桌/永安' },
+{ id: '221', name: '陳冠位', windowNo: '4號窗口', tableNo: '28桌/永安' },
+{ id: '222', name: '陳冠位-2', windowNo: '4號窗口', tableNo: '28桌/永安' },
+{ id: '223', name: '謝振家', windowNo: '3號窗口', tableNo: '30桌/生管' },
+{ id: '224', name: '曾佳惠', windowNo: '3號窗口', tableNo: '30桌/生管' },
+{ id: '225', name: '曾佳惠-2', windowNo: '3號窗口', tableNo: '30桌/生管' },
+{ id: '226', name: '曾佳惠-3', windowNo: '3號窗口', tableNo: '30桌/生管' },
+{ id: '227', name: '蘇聖智', windowNo: '3號窗口', tableNo: '30桌/生管' },
+{ id: '228', name: '蘇聖智-2', windowNo: '3號窗口', tableNo: '30桌/生管' },
+{ id: '229', name: '陳姵岑', windowNo: '3號窗口', tableNo: '30桌/生管' },
+{ id: '230', name: '陳姵岑-2', windowNo: '3號窗口', tableNo: '30桌/生管' },
+{ id: '231', name: '陳姵岑-3', windowNo: '3號窗口', tableNo: '30桌/生管' },
+{ id: '232', name: '陳姵岑-4', windowNo: '3號窗口', tableNo: '30桌/生管' },
+{ id: '233', name: '謝志偉', windowNo: '工作人員', tableNo: '91桌/守衛' },
+{ id: '234', name: '鄭詔陽', windowNo: '工作人員', tableNo: '91桌/守衛' },
+{ id: '235', name: '沈立勇', windowNo: '工作人員', tableNo: '91桌/守衛' },
+{ id: '236', name: '盧重韶', windowNo: '工作人員', tableNo: '91桌/守衛' },
+{ id: '237', name: '周彥佑', windowNo: '工作人員', tableNo: '91桌/守衛' },
+{ id: '238', name: '林偉斌', windowNo: '工作人員', tableNo: '91桌/守衛' },
+{ id: '239', name: '劉國忠', windowNo: '工作人員', tableNo: '91桌/守衛' },
+{ id: '240', name: '林文雄', windowNo: '工作人員', tableNo: '91桌/守衛' },
+{ id: '241', name: '林岱樺', windowNo: '2號窗口', tableNo: '9桌成控-1' },
+{ id: '242', name: '林岱樺-2', windowNo: '2號窗口', tableNo: '9桌成控-1' },
+{ id: '243', name: '黃維潔', windowNo: '2號窗口', tableNo: '9桌成控-1' },
+{ id: '244', name: '黃維潔-2', windowNo: '2號窗口', tableNo: '9桌成控-1' },
+{ id: '245', name: '黃維潔-3', windowNo: '2號窗口', tableNo: '9桌成控-1' },
+{ id: '246', name: '吳幸寰', windowNo: '2號窗口', tableNo: '9桌成控-1' },
+{ id: '247', name: '吳幸寰-2', windowNo: '2號窗口', tableNo: '9桌成控-1' },
+{ id: '248', name: '吳幸寰-3', windowNo: '2號窗口', tableNo: '9桌成控-1' },
+{ id: '249', name: '吳幸寰-4', windowNo: '2號窗口', tableNo: '9桌成控-1' },
+{ id: '250', name: '陳昕潁', windowNo: '2號窗口', tableNo: '15桌/成控-2' },
+{ id: '251', name: '吳彥東', windowNo: '2號窗口', tableNo: '15桌/成控-2' },
+{ id: '252', name: '吳彥東-2', windowNo: '2號窗口', tableNo: '15桌/成控-2' },
+{ id: '253', name: '吳彥東-3', windowNo: '2號窗口', tableNo: '15桌/成控-2' },
+{ id: '254', name: '蔡東儒', windowNo: '2號窗口', tableNo: '15桌/成控-2' },
+{ id: '255', name: '蔡東儒-2', windowNo: '2號窗口', tableNo: '15桌/成控-2' },
+{ id: '256', name: '蔡東儒-3', windowNo: '2號窗口', tableNo: '15桌/成控-2' },
+{ id: '257', name: '蔡東儒-4', windowNo: '2號窗口', tableNo: '15桌/成控-2' },
+{ id: '258', name: '黃俊逸', windowNo: '2號窗口', tableNo: '15桌/成控-2' },
+{ id: '259', name: '蔡璿翰', windowNo: '2號窗口', tableNo: '15桌/成控-2' },
+{ id: '260', name: '陳進堂', windowNo: '5號窗口', tableNo: '8桌/品保-1' },
+{ id: '261', name: '陳進堂-2', windowNo: '5號窗口', tableNo: '8桌/品保-1' },
+{ id: '262', name: '陳進堂-3', windowNo: '5號窗口', tableNo: '8桌/品保-1' },
+{ id: '263', name: '郭家睿', windowNo: '5號窗口', tableNo: '8桌/品保-1' },
+{ id: '264', name: '曾宜品', windowNo: '5號窗口', tableNo: '8桌/品保-1' },
+{ id: '265', name: '曾宜品-2', windowNo: '5號窗口', tableNo: '8桌/品保-1' },
+{ id: '266', name: '曾宜品-3', windowNo: '5號窗口', tableNo: '8桌/品保-1' },
+{ id: '267', name: '曾宜品-4', windowNo: '5號窗口', tableNo: '8桌/品保-1' },
+{ id: '268', name: '曾宜品-5', windowNo: '5號窗口', tableNo: '8桌/品保-1' },
+{ id: '269', name: '徐秉鋒', windowNo: '5號窗口', tableNo: '8桌/品保-1' },
+{ id: '270', name: '張瓅文', windowNo: '5號窗口', tableNo: '13桌/品保-2' },
+{ id: '271', name: '張瓅文-2', windowNo: '5號窗口', tableNo: '13桌/品保-2' },
+{ id: '272', name: '張瓅文-3', windowNo: '5號窗口', tableNo: '13桌/品保-2' },
+{ id: '273', name: '張瓅文-4', windowNo: '5號窗口', tableNo: '13桌/品保-2' },
+{ id: '274', name: '張瓅文-5', windowNo: '5號窗口', tableNo: '13桌/品保-2' },
+{ id: '275', name: '張瓅文-6', windowNo: '5號窗口', tableNo: '13桌/品保-2' },
+{ id: '276', name: '張瓅文-7', windowNo: '5號窗口', tableNo: '13桌/品保-2' },
+{ id: '277', name: '張瓅文-8', windowNo: '5號窗口', tableNo: '13桌/品保-2' },
+{ id: '278', name: '陳科旻', windowNo: '5號窗口', tableNo: '13桌/品保-2' },
+{ id: '279', name: '陳科旻-2', windowNo: '5號窗口', tableNo: '13桌/品保-2' },
+{ id: '280', name: '許立穎', windowNo: '5號窗口', tableNo: '14桌/品保-3' },
+{ id: '281', name: '許立穎-2', windowNo: '5號窗口', tableNo: '14桌/品保-3' },
+{ id: '282', name: '許立穎-3', windowNo: '5號窗口', tableNo: '14桌/品保-3' },
+{ id: '283', name: '許立穎-4', windowNo: '5號窗口', tableNo: '14桌/品保-3' },
+{ id: '284', name: '許立穎-5', windowNo: '5號窗口', tableNo: '14桌/品保-3' },
+{ id: '285', name: '許立穎-6', windowNo: '5號窗口', tableNo: '14桌/品保-3' },
+{ id: '286', name: '許立穎-7', windowNo: '5號窗口', tableNo: '14桌/品保-3' },
+{ id: '287', name: '許立穎-8', windowNo: '5號窗口', tableNo: '14桌/品保-3' },
+{ id: '288', name: '許立穎-9', windowNo: '5號窗口', tableNo: '14桌/品保-3' },
+{ id: '289', name: '許立穎-10', windowNo: '5號窗口', tableNo: '14桌/品保-3' },
+{ id: '290', name: '蘇景瑋', windowNo: '5號窗口', tableNo: '26桌/品保-4' },
+{ id: '291', name: '蘇景瑋-2', windowNo: '5號窗口', tableNo: '26桌/品保-4' },
+{ id: '292', name: '蘇景瑋-3', windowNo: '5號窗口', tableNo: '26桌/品保-4' },
+{ id: '293', name: '蘇景瑋-4', windowNo: '5號窗口', tableNo: '26桌/品保-4' },
+{ id: '294', name: '謝志威', windowNo: '5號窗口', tableNo: '26桌/品保-4' },
+{ id: '295', name: '黃照乘', windowNo: '5號窗口', tableNo: '26桌/品保-4' },
+{ id: '296', name: '蔡順州', windowNo: '5號窗口', tableNo: '26桌/品保-4' },
+{ id: '297', name: '蔡順州-2', windowNo: '5號窗口', tableNo: '26桌/品保-4' },
+{ id: '298', name: '蔡順州-3', windowNo: '5號窗口', tableNo: '26桌/品保-4' },
+{ id: '299', name: '蔡順州-4', windowNo: '5號窗口', tableNo: '26桌/品保-4' },
+{ id: '300', name: '花吉慶', windowNo: '5號窗口', tableNo: '25桌/品保-5' },
+{ id: '301', name: '花吉慶-2', windowNo: '5號窗口', tableNo: '25桌/品保-5' },
+{ id: '302', name: '花吉慶-3', windowNo: '5號窗口', tableNo: '25桌/品保-5' },
+{ id: '303', name: '洪禮信', windowNo: '5號窗口', tableNo: '25桌/品保-5' },
+{ id: '304', name: '洪禮信-2', windowNo: '5號窗口', tableNo: '25桌/品保-5' },
+{ id: '305', name: '洪禮信-3', windowNo: '5號窗口', tableNo: '25桌/品保-5' },
+{ id: '306', name: '洪禮信-4', windowNo: '5號窗口', tableNo: '25桌/品保-5' },
+{ id: '307', name: '洪禮信-5', windowNo: '5號窗口', tableNo: '25桌/品保-5' },
+{ id: '308', name: '洪禮信-6', windowNo: '5號窗口', tableNo: '25桌/品保-5' },
+{ id: '309', name: '洪禮信-7', windowNo: '5號窗口', tableNo: '25桌/品保-5' },
+{ id: '310', name: '羅博仁', windowNo: '5號窗口', tableNo: '19桌/品保-6' },
+{ id: '311', name: '羅博仁-2', windowNo: '5號窗口', tableNo: '19桌/品保-6' },
+{ id: '312', name: '羅博仁-3', windowNo: '5號窗口', tableNo: '19桌/品保-6' },
+{ id: '313', name: '羅博仁-4', windowNo: '5號窗口', tableNo: '19桌/品保-6' },
+{ id: '314', name: '羅博仁-5', windowNo: '5號窗口', tableNo: '19桌/品保-6' },
+{ id: '315', name: '陳冠儒', windowNo: '5號窗口', tableNo: '19桌/品保-6' },
+{ id: '316', name: '陳冠儒-2', windowNo: '5號窗口', tableNo: '19桌/品保-6' },
+{ id: '317', name: '陳逑清', windowNo: '5號窗口', tableNo: '19桌/品保-6' },
+{ id: '318', name: '陳逑清-2', windowNo: '5號窗口', tableNo: '19桌/品保-6' },
+{ id: '319', name: '陳逑清-3', windowNo: '5號窗口', tableNo: '19桌/品保-6' },
+{ id: '320', name: '李平和', windowNo: '5號窗口', tableNo: '素食1號桌' },
+{ id: '321', name: '李平和-2', windowNo: '5號窗口', tableNo: '素食1號桌' },
+{ id: '322', name: '王唯真', windowNo: '5號窗口', tableNo: '素食1號桌' },
+{ id: '323', name: '王唯真-2', windowNo: '5號窗口', tableNo: '素食1號桌' },
+{ id: '324', name: '王唯真-3', windowNo: '5號窗口', tableNo: '素食1號桌' },
+{ id: '325', name: '王唯真-4', windowNo: '5號窗口', tableNo: '素食1號桌' },
+{ id: '326', name: '王唯真-5', windowNo: '5號窗口', tableNo: '素食1號桌' },
+{ id: '327', name: '曾蕙文', windowNo: '5號窗口', tableNo: '素食1號桌' },
+{ id: '328', name: '曾心音', windowNo: '5號窗口', tableNo: '素食1號桌' },
+{ id: '329', name: '葉修身', windowNo: '5號窗口', tableNo: '素食1號桌' },
+{ id: '330', name: '葉修身-2', windowNo: '5號窗口', tableNo: '素食1號桌' },
+{ id: '331', name: '黃照乘', windowNo: '5號窗口', tableNo: '素食2號桌' },
+{ id: '332', name: '黃照乘-2', windowNo: '5號窗口', tableNo: '素食2號桌' },
+{ id: '333', name: '朱家宏', windowNo: '5號窗口', tableNo: '素食2號桌' },
+{ id: '334', name: '朱家宏-2', windowNo: '5號窗口', tableNo: '素食2號桌' },
+{ id: '335', name: '朱家宏-3', windowNo: '5號窗口', tableNo: '素食2號桌' },
+{ id: '336', name: '朱家宏-4', windowNo: '5號窗口', tableNo: '素食2號桌' },
+{ id: '337', name: '朱家宏-5', windowNo: '5號窗口', tableNo: '素食2號桌' },
+{ id: '338', name: '朱家宏-6', windowNo: '5號窗口', tableNo: '素食2號桌' },
+{ id: '339', name: '朱家宏-7', windowNo: '5號窗口', tableNo: '素食2號桌' },
+{ id: '340', name: '林文雄-2', windowNo: '5號窗口', tableNo: '素食2號桌' },
+{ id: '341', name: '林文雄-3', windowNo: '5號窗口', tableNo: '素食2號桌' },
+{ id: '342', name: '林文雄-4', windowNo: '5號窗口', tableNo: '素食2號桌' },
+{ id: '343', name: '林韻茹', windowNo: '6號窗口', tableNo: '48桌/財務-1' },
+{ id: '344', name: '林韻茹-2', windowNo: '6號窗口', tableNo: '48桌/財務-1' },
+{ id: '345', name: '林韻茹-3', windowNo: '6號窗口', tableNo: '48桌/財務-1' },
+{ id: '346', name: '林韻茹-4', windowNo: '6號窗口', tableNo: '48桌/財務-1' },
+{ id: '347', name: '林韻茹-5', windowNo: '6號窗口', tableNo: '48桌/財務-1' },
+{ id: '348', name: '黃曉君', windowNo: '6號窗口', tableNo: '48桌/財務-1' },
+{ id: '349', name: '黃曉君-2', windowNo: '6號窗口', tableNo: '48桌/財務-1' },
+{ id: '350', name: '黃曉君-3', windowNo: '6號窗口', tableNo: '48桌/財務-1' },
+{ id: '351', name: '黃曉君-4', windowNo: '6號窗口', tableNo: '48桌/財務-1' },
+{ id: '352', name: '黃曉君-5', windowNo: '6號窗口', tableNo: '48桌/財務-1' },
+{ id: '353', name: '黃曉君-6', windowNo: '6號窗口', tableNo: '47桌/財務-2' },
+{ id: '354', name: '黃曉君-7', windowNo: '6號窗口', tableNo: '47桌/財務-2' },
+{ id: '355', name: '黃曉君-8', windowNo: '6號窗口', tableNo: '47桌/財務-2' },
+{ id: '356', name: '黃曉君-9', windowNo: '6號窗口', tableNo: '47桌/財務-2' },
+{ id: '357', name: '黃曉君-10', windowNo: '6號窗口', tableNo: '47桌/財務-2' },
+{ id: '358', name: '黃曉君-11', windowNo: '6號窗口', tableNo: '47桌/財務-2' },
+{ id: '359', name: '黃曉君-12', windowNo: '6號窗口', tableNo: '47桌/財務-2' },
+{ id: '360', name: '黃曉君-13', windowNo: '6號窗口', tableNo: '47桌/財務-2' },
+{ id: '361', name: '黃曉君-14', windowNo: '6號窗口', tableNo: '47桌/財務-2' },
+{ id: '362', name: '黃曉君-15', windowNo: '6號窗口', tableNo: '47桌/財務-2' },
+{ id: '363', name: '黃曉君-16', windowNo: '6號窗口', tableNo: '54桌/財務-3' },
+{ id: '364', name: '黃曉君-17', windowNo: '6號窗口', tableNo: '54桌/財務-3' },
+{ id: '365', name: '黃曉君-18', windowNo: '6號窗口', tableNo: '54桌/財務-3' },
+{ id: '366', name: '黃曉君-19', windowNo: '6號窗口', tableNo: '54桌/財務-3' },
+{ id: '367', name: '黃曉君-20', windowNo: '6號窗口', tableNo: '54桌/財務-3' },
+{ id: '368', name: '吳怡菁', windowNo: '6號窗口', tableNo: '54桌/財務-3' },
+{ id: '369', name: '吳怡菁-2', windowNo: '6號窗口', tableNo: '54桌/財務-3' },
+{ id: '370', name: '吳怡菁-3', windowNo: '6號窗口', tableNo: '54桌/財務-3' },
+{ id: '371', name: '吳怡菁-4', windowNo: '6號窗口', tableNo: '54桌/財務-3' },
+{ id: '372', name: '吳怡菁-5', windowNo: '6號窗口', tableNo: '54桌/財務-3' },
+{ id: '373', name: '吳怡菁-6', windowNo: '6號窗口', tableNo: '54桌/財務-3' },
+{ id: '374', name: '吳怡菁-7', windowNo: '6號窗口', tableNo: '54桌/財務-3' },
+{ id: '375', name: '章惠姍', windowNo: '6號窗口', tableNo: '53桌/財務-4' },
+{ id: '376', name: '章惠姍-2', windowNo: '6號窗口', tableNo: '53桌/財務-4' },
+{ id: '377', name: '章惠姍-3', windowNo: '6號窗口', tableNo: '53桌/財務-4' },
+{ id: '378', name: '章惠姍-4', windowNo: '6號窗口', tableNo: '53桌/財務-4' },
+{ id: '379', name: '章惠姍-5', windowNo: '6號窗口', tableNo: '53桌/財務-4' },
+{ id: '380', name: '章惠姍-6', windowNo: '6號窗口', tableNo: '53桌/財務-4' },
+{ id: '381', name: '章惠姍-7', windowNo: '6號窗口', tableNo: '53桌/財務-4' },
+{ id: '382', name: '黃怡汶', windowNo: '6號窗口', tableNo: '53桌/財務-4' },
+{ id: '383', name: '黃怡汶-2', windowNo: '6號窗口', tableNo: '53桌/財務-4' },
+{ id: '384', name: '陳玉如', windowNo: '6號窗口', tableNo: '58桌/財務-5' },
+{ id: '385', name: '陳玉如-2', windowNo: '6號窗口', tableNo: '58桌/財務-5' },
+{ id: '386', name: '陳玉如-3', windowNo: '6號窗口', tableNo: '58桌/財務-5' },
+{ id: '387', name: '吳婍瑄', windowNo: '6號窗口', tableNo: '58桌/財務-5' },
+{ id: '388', name: '吳婍瑄-2', windowNo: '6號窗口', tableNo: '58桌/財務-5' },
+{ id: '389', name: '吳婍瑄-3', windowNo: '6號窗口', tableNo: '58桌/財務-5' },
+{ id: '390', name: '吳婍瑄-4', windowNo: '6號窗口', tableNo: '58桌/財務-5' },
+{ id: '391', name: '林亭瑄', windowNo: '6號窗口', tableNo: '58桌/財務-5' },
+{ id: '392', name: '李欣儒', windowNo: '6號窗口', tableNo: '58桌/財務-5' },
+{ id: '393', name: '劉立夫', windowNo: '6號窗口', tableNo: '3桌/國外業務' },
+{ id: '394', name: '奧斯卡', windowNo: '6號窗口', tableNo: '3桌/國外業務' },
+{ id: '395', name: '奧斯卡-2', windowNo: '6號窗口', tableNo: '3桌/國外業務' },
+{ id: '396', name: '謝彩閔', windowNo: '6號窗口', tableNo: '3桌/國外業務' },
+{ id: '397', name: '蔣雯鈴', windowNo: '6號窗口', tableNo: '3桌/國外業務' },
+{ id: '398', name: '蔣雯鈴-2', windowNo: '6號窗口', tableNo: '3桌/國外業務' },
+{ id: '399', name: '蔣雯鈴-3', windowNo: '6號窗口', tableNo: '3桌/國外業務' },
+{ id: '400', name: '黃新茹', windowNo: '6號窗口', tableNo: '3桌/國外業務' },
+{ id: '401', name: '王鈴珺', windowNo: '4號窗口', tableNo: '2桌/專案-1' },
+{ id: '402', name: '王鈴珺-2', windowNo: '4號窗口', tableNo: '2桌/專案-1' },
+{ id: '403', name: '王鈴珺-3', windowNo: '4號窗口', tableNo: '2桌/專案-1' },
+{ id: '404', name: '王鈴珺-4', windowNo: '4號窗口', tableNo: '2桌/專案-1' },
+{ id: '405', name: '王鈴珺-5', windowNo: '4號窗口', tableNo: '2桌/專案-1' },
+{ id: '406', name: '王鈴珺-6', windowNo: '4號窗口', tableNo: '2桌/專案-1' },
+{ id: '407', name: '劉虹均', windowNo: '4號窗口', tableNo: '2桌/專案-1' },
+{ id: '408', name: '劉虹均-2', windowNo: '4號窗口', tableNo: '2桌/專案-1' },
+{ id: '409', name: '劉虹均-3', windowNo: '4號窗口', tableNo: '2桌/專案-1' },
+{ id: '410', name: '劉虹均-4', windowNo: '4號窗口', tableNo: '2桌/專案-1' },
+{ id: '411', name: '彭秀春', windowNo: '4號窗口', tableNo: '1桌/專案-2' },
+{ id: '412', name: '彭秀春-2', windowNo: '4號窗口', tableNo: '1桌/專案-2' },
+{ id: '413', name: '蔡宛妤', windowNo: '4號窗口', tableNo: '1桌/專案-2' },
+{ id: '414', name: '蔡宛妤-2', windowNo: '4號窗口', tableNo: '1桌/專案-2' },
+{ id: '415', name: '蔡宛妤-3', windowNo: '4號窗口', tableNo: '1桌/專案-2' },
+{ id: '416', name: '蔡宛妤-4', windowNo: '4號窗口', tableNo: '1桌/專案-2' },
+{ id: '417', name: '曾千綺', windowNo: '4號窗口', tableNo: '1桌/專案-2' },
+{ id: '418', name: '蕭郁萱', windowNo: '4號窗口', tableNo: '1桌/專案-2' },
+{ id: '419', name: '蕭郁萱-2', windowNo: '4號窗口', tableNo: '1桌/專案-2' },
+{ id: '420', name: '林雅純', windowNo: '4號窗口', tableNo: '1桌/專案-2' },
+{ id: '421', name: '羅志敏', windowNo: '4號窗口', tableNo: '7桌/專案-3' },
+{ id: '422', name: '羅志敏-2', windowNo: '4號窗口', tableNo: '7桌/專案-3' },
+{ id: '423', name: '郭丞恩', windowNo: '4號窗口', tableNo: '7桌/專案-3' },
+{ id: '424', name: '郭丞恩-2', windowNo: '4號窗口', tableNo: '7桌/專案-3' },
+{ id: '425', name: '郭丞恩-3', windowNo: '4號窗口', tableNo: '7桌/專案-3' },
+{ id: '426', name: '郭丞恩-4', windowNo: '4號窗口', tableNo: '7桌/專案-3' },
+{ id: '427', name: '郭丞恩-5', windowNo: '4號窗口', tableNo: '7桌/專案-3' },
+{ id: '428', name: '王千云', windowNo: '4號窗口', tableNo: '7桌/專案-3' },
+{ id: '429', name: '王千云-2', windowNo: '4號窗口', tableNo: '7桌/專案-3' },
+{ id: '430', name: '鍾振宏', windowNo: '4號窗口', tableNo: '7桌/專案-3' },
+{ id: '431', name: '許慈芳', windowNo: '6號窗口', tableNo: '76桌/採購-1' },
+{ id: '432', name: '許慈芳-2', windowNo: '6號窗口', tableNo: '76桌/採購-1' },
+{ id: '433', name: '許慈芳-3', windowNo: '6號窗口', tableNo: '76桌/採購-1' },
+{ id: '434', name: '許慈芳-4', windowNo: '6號窗口', tableNo: '76桌/採購-1' },
+{ id: '435', name: '許慈芳-5', windowNo: '6號窗口', tableNo: '76桌/採購-1' },
+{ id: '436', name: '許慈芳-6', windowNo: '6號窗口', tableNo: '76桌/採購-1' },
+{ id: '437', name: '許慈芳-7', windowNo: '6號窗口', tableNo: '76桌/採購-1' },
+{ id: '438', name: '許慈芳-8', windowNo: '6號窗口', tableNo: '76桌/採購-1' },
+{ id: '439', name: '許慈芳-9', windowNo: '6號窗口', tableNo: '76桌/採購-1' },
+{ id: '440', name: '許慈芳-10', windowNo: '6號窗口', tableNo: '76桌/採購-1' },
+{ id: '441', name: '許昕儒', windowNo: '6號窗口', tableNo: '77桌/採購-2' },
+{ id: '442', name: '許昕儒-2', windowNo: '6號窗口', tableNo: '77桌/採購-2' },
+{ id: '443', name: '許昕儒-3', windowNo: '6號窗口', tableNo: '77桌/採購-2' },
+{ id: '444', name: '許昕儒-4', windowNo: '6號窗口', tableNo: '77桌/採購-2' },
+{ id: '445', name: '許昕儒-5', windowNo: '6號窗口', tableNo: '77桌/採購-2' },
+{ id: '446', name: '許昕儒-6', windowNo: '6號窗口', tableNo: '77桌/採購-2' },
+{ id: '447', name: '許昕儒-7', windowNo: '6號窗口', tableNo: '77桌/採購-2' },
+{ id: '448', name: '許昕儒-8', windowNo: '6號窗口', tableNo: '77桌/採購-2' },
+{ id: '449', name: '許昕儒-9', windowNo: '6號窗口', tableNo: '77桌/採購-2' },
+{ id: '450', name: '余妙芸', windowNo: '6號窗口', tableNo: '77桌/採購-2' },
+{ id: '451', name: '謝緻諼', windowNo: '6號窗口', tableNo: '82桌/採購-3' },
+{ id: '452', name: '葉姿澄', windowNo: '6號窗口', tableNo: '82桌/採購-3' },
+{ id: '453', name: '葉姿澄-2', windowNo: '6號窗口', tableNo: '82桌/採購-3' },
+{ id: '454', name: '葉姿澄-3', windowNo: '6號窗口', tableNo: '82桌/採購-3' },
+{ id: '455', name: '葉姿澄-4', windowNo: '6號窗口', tableNo: '82桌/採購-3' },
+{ id: '456', name: '葉姿澄-5', windowNo: '6號窗口', tableNo: '82桌/採購-3' },
+{ id: '457', name: '葉姿澄-6', windowNo: '6號窗口', tableNo: '82桌/採購-3' },
+{ id: '458', name: '葉姿澄-7', windowNo: '6號窗口', tableNo: '82桌/採購-3' },
+{ id: '459', name: '葉姿澄-8', windowNo: '6號窗口', tableNo: '82桌/採購-3' },
+{ id: '460', name: '葉姿澄-9', windowNo: '6號窗口', tableNo: '82桌/採購-3' },
+{ id: '461', name: '阮竹理', windowNo: '3號窗口', tableNo: '73桌/現場-1' },
+{ id: '462', name: '阮竹理-2', windowNo: '3號窗口', tableNo: '73桌/現場-1' },
+{ id: '463', name: '阮竹理-3', windowNo: '3號窗口', tableNo: '73桌/現場-1' },
+{ id: '464', name: '高金傳', windowNo: '3號窗口', tableNo: '73桌/現場-1' },
+{ id: '465', name: '高金傳-2', windowNo: '3號窗口', tableNo: '73桌/現場-1' },
+{ id: '466', name: '王敬順', windowNo: '3號窗口', tableNo: '73桌/現場-1' },
+{ id: '467', name: '王敬順-2', windowNo: '3號窗口', tableNo: '73桌/現場-1' },
+{ id: '468', name: '吳范麟', windowNo: '3號窗口', tableNo: '73桌/現場-1' },
+{ id: '469', name: '吳范麟-2', windowNo: '3號窗口', tableNo: '73桌/現場-1' },
+{ id: '470', name: '許蒼民', windowNo: '3號窗口', tableNo: '74桌/現場-2' },
+{ id: '471', name: '許蒼民-2', windowNo: '3號窗口', tableNo: '74桌/現場-2' },
+{ id: '472', name: '許蒼民-3', windowNo: '3號窗口', tableNo: '74桌/現場-2' },
+{ id: '473', name: '許蒼民-4', windowNo: '3號窗口', tableNo: '74桌/現場-2' },
+{ id: '474', name: '陳政男', windowNo: '3號窗口', tableNo: '74桌/現場-2' },
+{ id: '475', name: '陳政男-2', windowNo: '3號窗口', tableNo: '74桌/現場-2' },
+{ id: '476', name: '陳政男-3', windowNo: '3號窗口', tableNo: '74桌/現場-2' },
+{ id: '477', name: '許育諺', windowNo: '3號窗口', tableNo: '74桌/現場-2' },
+{ id: '478', name: '吳品紘', windowNo: '3號窗口', tableNo: '75桌/現場-3' },
+{ id: '479', name: '吳品紘-2', windowNo: '3號窗口', tableNo: '75桌/現場-3' },
+{ id: '480', name: '吳品紘-3', windowNo: '3號窗口', tableNo: '75桌/現場-3' },
+{ id: '481', name: '吳品紘-4', windowNo: '3號窗口', tableNo: '75桌/現場-3' },
+{ id: '482', name: '吳品紘-5', windowNo: '3號窗口', tableNo: '75桌/現場-3' },
+{ id: '483', name: '吳品紘-6', windowNo: '3號窗口', tableNo: '75桌/現場-3' },
+{ id: '484', name: '吳品紘-7', windowNo: '3號窗口', tableNo: '75桌/現場-3' },
+{ id: '485', name: '周志偉', windowNo: '3號窗口', tableNo: '75桌/現場-3' },
+{ id: '486', name: '周志偉-2', windowNo: '3號窗口', tableNo: '75桌/現場-3' },
+{ id: '487', name: '許明仁', windowNo: '3號窗口', tableNo: '75桌/現場-3' },
+{ id: '488', name: '張琦中', windowNo: '3號窗口', tableNo: '79桌/現場-4' },
+{ id: '489', name: '張琦中-2', windowNo: '3號窗口', tableNo: '79桌/現場-4' },
+{ id: '490', name: '張琦中-3', windowNo: '3號窗口', tableNo: '79桌/現場-4' },
+{ id: '491', name: '張琦中-4', windowNo: '3號窗口', tableNo: '79桌/現場-4' },
+{ id: '492', name: '吳育鴻', windowNo: '3號窗口', tableNo: '79桌/現場-4' },
+{ id: '493', name: '薛明錚', windowNo: '3號窗口', tableNo: '79桌/現場-4' },
+{ id: '494', name: '薛明錚-2', windowNo: '3號窗口', tableNo: '79桌/現場-4' },
+{ id: '495', name: '薛明錚-3', windowNo: '3號窗口', tableNo: '79桌/現場-4' },
+{ id: '496', name: '梁揚閔', windowNo: '5號窗口', tableNo: '31桌/設備-1' },
+{ id: '497', name: '梁揚閔-2', windowNo: '5號窗口', tableNo: '31桌/設備-1' },
+{ id: '498', name: '梁揚閔-3', windowNo: '5號窗口', tableNo: '31桌/設備-1' },
+{ id: '499', name: '梁揚閔-4', windowNo: '5號窗口', tableNo: '31桌/設備-1' },
+{ id: '500', name: '梁揚閔-5', windowNo: '5號窗口', tableNo: '31桌/設備-1' },
+{ id: '501', name: '梁揚閔-6', windowNo: '5號窗口', tableNo: '31桌/設備-1' },
+{ id: '502', name: '韓沅叡', windowNo: '5號窗口', tableNo: '31桌/設備-1' },
+{ id: '503', name: '吳沄芳', windowNo: '5號窗口', tableNo: '31桌/設備-1' },
+{ id: '504', name: '吳沄芳-2', windowNo: '5號窗口', tableNo: '31桌/設備-1' },
+{ id: '505', name: '吳沄芳-3', windowNo: '5號窗口', tableNo: '31桌/設備-1' },
+{ id: '506', name: '葉盈讌', windowNo: '5號窗口', tableNo: '32桌/設備-2' },
+{ id: '507', name: '葉盈讌-2', windowNo: '5號窗口', tableNo: '32桌/設備-2' },
+{ id: '508', name: '葉盈讌-3', windowNo: '5號窗口', tableNo: '32桌/設備-2' },
+{ id: '509', name: '葉盈讌-4', windowNo: '5號窗口', tableNo: '32桌/設備-2' },
+{ id: '510', name: '葉盈讌-5', windowNo: '5號窗口', tableNo: '32桌/設備-2' },
+{ id: '511', name: '葉盈讌-6', windowNo: '5號窗口', tableNo: '32桌/設備-2' },
+{ id: '512', name: '葉盈讌-7', windowNo: '5號窗口', tableNo: '32桌/設備-2' },
+{ id: '513', name: '葉盈讌-8', windowNo: '5號窗口', tableNo: '32桌/設備-2' },
+{ id: '514', name: '潘莉婷', windowNo: '5號窗口', tableNo: '37桌/設備-3' },
+{ id: '515', name: '潘莉婷-2', windowNo: '5號窗口', tableNo: '37桌/設備-3' },
+{ id: '516', name: '潘莉婷-3', windowNo: '5號窗口', tableNo: '37桌/設備-3' },
+{ id: '517', name: '潘莉婷-4', windowNo: '5號窗口', tableNo: '37桌/設備-3' },
+{ id: '518', name: '潘莉婷-5', windowNo: '5號窗口', tableNo: '37桌/設備-3' },
+{ id: '519', name: '潘莉婷-6', windowNo: '5號窗口', tableNo: '37桌/設備-3' },
+{ id: '520', name: '潘莉婷-7', windowNo: '5號窗口', tableNo: '37桌/設備-3' },
+{ id: '521', name: '潘莉婷-8', windowNo: '5號窗口', tableNo: '37桌/設備-3' },
+{ id: '522', name: '周志傑', windowNo: '4號窗口', tableNo: '34桌/麥寮-1' },
+{ id: '523', name: '周志傑-2', windowNo: '4號窗口', tableNo: '34桌/麥寮-1' },
+{ id: '524', name: '周志傑-3', windowNo: '4號窗口', tableNo: '34桌/麥寮-1' },
+{ id: '525', name: '周志傑-4', windowNo: '4號窗口', tableNo: '34桌/麥寮-1' },
+{ id: '526', name: '周志傑-5', windowNo: '4號窗口', tableNo: '34桌/麥寮-1' },
+{ id: '527', name: '歐鴻誠', windowNo: '4號窗口', tableNo: '34桌/麥寮-1' },
+{ id: '528', name: '歐鴻誠-2', windowNo: '4號窗口', tableNo: '34桌/麥寮-1' },
+{ id: '529', name: '歐鴻誠-3', windowNo: '4號窗口', tableNo: '34桌/麥寮-1' },
+{ id: '530', name: '郭漢濱', windowNo: '4號窗口', tableNo: '34桌/麥寮-1' },
+{ id: '531', name: '郭漢濱-2', windowNo: '4號窗口', tableNo: '34桌/麥寮-1' },
+{ id: '532', name: '施旻佑', windowNo: '4號窗口', tableNo: '35桌/麥寮-2' },
+{ id: '533', name: '施旻佑-2', windowNo: '4號窗口', tableNo: '35桌/麥寮-2' },
+{ id: '534', name: '施旻佑-3', windowNo: '4號窗口', tableNo: '35桌/麥寮-2' },
+{ id: '535', name: '施旻佑-4', windowNo: '4號窗口', tableNo: '35桌/麥寮-2' },
+{ id: '536', name: '施旻佑-5', windowNo: '4號窗口', tableNo: '35桌/麥寮-2' },
+{ id: '537', name: '簡家胤', windowNo: '4號窗口', tableNo: '35桌/麥寮-2' },
+{ id: '538', name: '簡家胤', windowNo: '4號窗口', tableNo: '35桌/麥寮-2' },
+{ id: '539', name: '簡家胤', windowNo: '4號窗口', tableNo: '35桌/麥寮-2' },
+{ id: '540', name: '簡家胤', windowNo: '4號窗口', tableNo: '35桌/麥寮-2' },
+{ id: '541', name: '簡家胤', windowNo: '4號窗口', tableNo: '35桌/麥寮-2' },
+{ id: '542', name: '吳坤育', windowNo: '4號窗口', tableNo: '36桌/麥寮-3' },
+{ id: '543', name: '吳坤育-2', windowNo: '4號窗口', tableNo: '36桌/麥寮-3' },
+{ id: '544', name: '吳坤育-3', windowNo: '4號窗口', tableNo: '36桌/麥寮-3' },
+{ id: '545', name: '吳坤育-4', windowNo: '4號窗口', tableNo: '36桌/麥寮-3' },
+{ id: '546', name: '吳坤育-5', windowNo: '4號窗口', tableNo: '36桌/麥寮-3' },
+{ id: '547', name: '余岳璋', windowNo: '4號窗口', tableNo: '36桌/麥寮-3' },
+{ id: '548', name: '余岳璋-2', windowNo: '4號窗口', tableNo: '36桌/麥寮-3' },
+{ id: '549', name: '余岳璋-3', windowNo: '4號窗口', tableNo: '36桌/麥寮-3' },
+{ id: '550', name: '余岳璋-4', windowNo: '4號窗口', tableNo: '36桌/麥寮-3' },
+{ id: '551', name: '嚴廷康', windowNo: 'VIP(無須報到)', tableNo: '貴賓1號桌' },
+{ id: '552', name: '嚴廷康-2', windowNo: 'VIP(無須報到)', tableNo: '貴賓1號桌' },
+{ id: '553', name: '嚴思如', windowNo: 'VIP(無須報到)', tableNo: '貴賓1號桌' },
+{ id: '554', name: '嚴思如-2', windowNo: 'VIP(無須報到)', tableNo: '貴賓1號桌' },
+{ id: '555', name: '呂總督導', windowNo: 'VIP(無須報到)', tableNo: '貴賓2號桌' },
+{ id: '556', name: '呂總督導-2', windowNo: 'VIP(無須報到)', tableNo: '貴賓2號桌' },
+{ id: '557', name: '郭水祥協理', windowNo: 'VIP(無須報到)', tableNo: '貴賓2號桌' },
+{ id: '558', name: '郭水祥協理-2', windowNo: 'VIP(無須報到)', tableNo: '貴賓2號桌' },
+{ id: '559', name: '李平和', windowNo: 'VIP(無須報到)', tableNo: '貴賓2號桌' },
+{ id: '560', name: '李平和-2', windowNo: 'VIP(無須報到)', tableNo: '貴賓2號桌' },
+{ id: '561', name: '李平和-3', windowNo: 'VIP(無須報到)', tableNo: '貴賓2號桌' },
+{ id: '562', name: '何承翰', windowNo: 'VIP(無須報到)', tableNo: '貴賓2號桌' },
+{ id: '563', name: '何承翰-2', windowNo: 'VIP(無須報到)', tableNo: '貴賓2號桌' },
+{ id: '564', name: '袁文中', windowNo: 'VIP(無須報到)', tableNo: '貴賓4號桌' },
+{ id: '565', name: '林秀雲', windowNo: '3號窗口', tableNo: '33桌/資材' },
+{ id: '566', name: '林秀雲-2', windowNo: '3號窗口', tableNo: '33桌/資材' },
+{ id: '567', name: '林秀雲-3', windowNo: '3號窗口', tableNo: '33桌/資材' },
+{ id: '568', name: '林秀雲-4', windowNo: '3號窗口', tableNo: '33桌/資材' },
+{ id: '569', name: '林秀雲-5', windowNo: '3號窗口', tableNo: '33桌/資材' },
+{ id: '570', name: '謝閔萱', windowNo: '3號窗口', tableNo: '33桌/資材' },
+{ id: '571', name: '謝閔萱-2', windowNo: '3號窗口', tableNo: '33桌/資材' },
+{ id: '572', name: '蔡坤川', windowNo: '3號窗口', tableNo: '33桌/資材' },
+{ id: '573', name: '蔡博丞', windowNo: '3號窗口', tableNo: '33桌/資材' },
+{ id: '574', name: '黃彥翔', windowNo: '3號窗口', tableNo: '33桌/資材' },
+{ id: '575', name: '翁秀珍', windowNo: '3號窗口', tableNo: '27桌/資訊' },
+{ id: '576', name: '翁秀珍-2', windowNo: '3號窗口', tableNo: '27桌/資訊' },
+{ id: '577', name: '翁秀珍-3', windowNo: '3號窗口', tableNo: '27桌/資訊' },
+{ id: '578', name: '蔡仁俊', windowNo: '3號窗口', tableNo: '27桌/資訊' },
+{ id: '579', name: '蔡仁俊-2', windowNo: '3號窗口', tableNo: '27桌/資訊' },
+{ id: '580', name: '蔡仁俊-3', windowNo: '3號窗口', tableNo: '27桌/資訊' },
+{ id: '581', name: '曾慧琪', windowNo: '3號窗口', tableNo: '27桌/資訊' },
+{ id: '582', name: '曾慧琪-2', windowNo: '3號窗口', tableNo: '27桌/資訊' },
+{ id: '583', name: '曾慧琪-3', windowNo: '3號窗口', tableNo: '27桌/資訊' },
+{ id: '584', name: '曾慧琪-4', windowNo: '3號窗口', tableNo: '27桌/資訊' },
+{ id: '585', name: '柯泰安', windowNo: '2號窗口', tableNo: '29桌/電機' },
+{ id: '586', name: '陳正原', windowNo: '2號窗口', tableNo: '29桌/電機' },
+{ id: '587', name: '陳政彥', windowNo: '2號窗口', tableNo: '29桌/電機' },
+{ id: '588', name: '顏敬倫', windowNo: '2號窗口', tableNo: '29桌/電機' },
+{ id: '589', name: '郭佳瑜', windowNo: '2號窗口', tableNo: '29桌/電機' },
+{ id: '590', name: '林玉竹', windowNo: '2號窗口', tableNo: '29桌/電機' },
+{ id: '591', name: '李家蓁', windowNo: '2號窗口', tableNo: '29桌/電機' },
+{ id: '592', name: '李奇鴻', windowNo: '2號窗口', tableNo: '29桌/電機' },
+{ id: '593', name: '吳啟文', windowNo: '2號窗口', tableNo: '29桌/電機' },
+{ id: '594', name: '高義郎', windowNo: '2號窗口', tableNo: '29桌/電機' },
+{ id: '595', name: '李文榮', windowNo: '2號窗口', tableNo: '88桌/管線-1' },
+{ id: '596', name: '夏豪村', windowNo: '2號窗口', tableNo: '88桌/管線-1' },
+{ id: '597', name: '柯姿帆', windowNo: '2號窗口', tableNo: '88桌/管線-1' },
+{ id: '598', name: '柯姿帆-2', windowNo: '2號窗口', tableNo: '88桌/管線-1' },
+{ id: '599', name: '柯姿帆-3', windowNo: '2號窗口', tableNo: '88桌/管線-1' },
+{ id: '600', name: '許詠涵', windowNo: '2號窗口', tableNo: '88桌/管線-1' },
+{ id: '601', name: '許詠涵-2', windowNo: '2號窗口', tableNo: '88桌/管線-1' },
+{ id: '602', name: '許詠涵-3', windowNo: '2號窗口', tableNo: '88桌/管線-1' },
+{ id: '603', name: '許詠涵-4', windowNo: '2號窗口', tableNo: '88桌/管線-1' },
+{ id: '604', name: '蔡旻瑜', windowNo: '2號窗口', tableNo: '88桌/管線-1' },
+{ id: '605', name: '林尚毅', windowNo: '2號窗口', tableNo: '89桌/管線-2' },
+{ id: '606', name: '林敬博', windowNo: '2號窗口', tableNo: '89桌/管線-2' },
+{ id: '607', name: '彭偉翔', windowNo: '2號窗口', tableNo: '89桌/管線-2' },
+{ id: '608', name: '劉秉婕', windowNo: '2號窗口', tableNo: '89桌/管線-2' },
+{ id: '609', name: '劉秉婕-2', windowNo: '2號窗口', tableNo: '89桌/管線-2' },
+{ id: '610', name: '劉秉婕-3', windowNo: '2號窗口', tableNo: '89桌/管線-2' },
+{ id: '611', name: '劉秉婕-4', windowNo: '2號窗口', tableNo: '89桌/管線-2' },
+{ id: '612', name: '郭佩函', windowNo: '2號窗口', tableNo: '89桌/管線-2' },
+{ id: '613', name: '郭佩函-2', windowNo: '2號窗口', tableNo: '89桌/管線-2' },
+{ id: '614', name: '郭佩函-3', windowNo: '2號窗口', tableNo: '89桌/管線-2' },
+{ id: '615', name: '方薇婷', windowNo: '5號窗口', tableNo: '87桌/管線建造' },
+{ id: '616', name: '方薇婷-2', windowNo: '5號窗口', tableNo: '87桌/管線建造' },
+{ id: '617', name: '方薇婷-3', windowNo: '5號窗口', tableNo: '87桌/管線建造' },
+{ id: '618', name: '方薇婷-4', windowNo: '5號窗口', tableNo: '87桌/管線建造' },
+{ id: '619', name: '陳富國', windowNo: '5號窗口', tableNo: '87桌/管線建造' },
+{ id: '620', name: '陳富國-2', windowNo: '5號窗口', tableNo: '87桌/管線建造' },
+{ id: '621', name: '陳富國-3', windowNo: '5號窗口', tableNo: '87桌/管線建造' },
+{ id: '622', name: '蘇郁凱', windowNo: '5號窗口', tableNo: '87桌/管線建造' },
+{ id: '623', name: '蘇郁凱-2', windowNo: '5號窗口', tableNo: '87桌/管線建造' },
+{ id: '624', name: '蘇郁凱-3', windowNo: '5號窗口', tableNo: '87桌/管線建造' },
+{ id: '625', name: '陳立信', windowNo: '1號窗口', tableNo: '85桌/製造專案-1' },
+{ id: '626', name: '陳立信-2', windowNo: '1號窗口', tableNo: '85桌/製造專案-1' },
+{ id: '627', name: '陳立信-3', windowNo: '1號窗口', tableNo: '85桌/製造專案-1' },
+{ id: '628', name: '陳立信-4', windowNo: '1號窗口', tableNo: '85桌/製造專案-1' },
+{ id: '629', name: '蕭丞彣', windowNo: '1號窗口', tableNo: '85桌/製造專案-1' },
+{ id: '630', name: '吳嘉憲', windowNo: '1號窗口', tableNo: '85桌/製造專案-1' },
+{ id: '631', name: '吳嘉憲-2', windowNo: '1號窗口', tableNo: '85桌/製造專案-1' },
+{ id: '632', name: '吳嘉憲-3', windowNo: '1號窗口', tableNo: '85桌/製造專案-1' },
+{ id: '633', name: '吳嘉憲-4', windowNo: '1號窗口', tableNo: '85桌/製造專案-1' },
+{ id: '634', name: '吳嘉憲-5', windowNo: '1號窗口', tableNo: '85桌/製造專案-1' },
+{ id: '635', name: '侯秋玉', windowNo: '1號窗口', tableNo: '86桌/製造專案-2' },
+{ id: '636', name: '侯秋玉-2', windowNo: '1號窗口', tableNo: '86桌/製造專案-2' },
+{ id: '637', name: '侯秋玉-3', windowNo: '1號窗口', tableNo: '86桌/製造專案-2' },
+{ id: '638', name: '侯秋玉-4', windowNo: '1號窗口', tableNo: '86桌/製造專案-2' },
+{ id: '639', name: '侯秋玉-5', windowNo: '1號窗口', tableNo: '86桌/製造專案-2' },
+{ id: '640', name: '侯秋玉-6', windowNo: '1號窗口', tableNo: '86桌/製造專案-2' },
+{ id: '641', name: '侯秋玉-7', windowNo: '1號窗口', tableNo: '86桌/製造專案-2' },
+{ id: '642', name: '鄭宥均', windowNo: '1號窗口', tableNo: '86桌/製造專案-2' },
+{ id: '643', name: '鄭宥均-2', windowNo: '1號窗口', tableNo: '86桌/製造專案-2' },
+{ id: '644', name: '鄭宥均-3', windowNo: '1號窗口', tableNo: '86桌/製造專案-2' },
+{ id: '645', name: '蔡振文', windowNo: '3號窗口', tableNo: '80桌/機加工' },
+{ id: '646', name: '蔡振文-2', windowNo: '3號窗口', tableNo: '80桌/機加工' },
+{ id: '647', name: '蔡振文-3', windowNo: '3號窗口', tableNo: '80桌/機加工' },
+{ id: '648', name: '郭建夆', windowNo: '3號窗口', tableNo: '80桌/機加工' },
+{ id: '649', name: '郭建夆-2', windowNo: '3號窗口', tableNo: '80桌/機加工' },
+{ id: '650', name: '郭建夆-3', windowNo: '3號窗口', tableNo: '80桌/機加工' },
+{ id: '651', name: '郭建夆-4', windowNo: '3號窗口', tableNo: '80桌/機加工' },
+{ id: '652', name: '黎文華', windowNo: '3號窗口', tableNo: '80桌/機加工' },
+{ id: '653', name: '黎文華-2', windowNo: '3號窗口', tableNo: '80桌/機加工' },
+{ id: '654', name: '黎文華-3', windowNo: '3號窗口', tableNo: '80桌/機加工' },
+{ id: '655', name: '洪琇卿', windowNo: '1號窗口', tableNo: '42桌/總務-1' },
+{ id: '656', name: '洪琇卿-2', windowNo: '1號窗口', tableNo: '42桌/總務-1' },
+{ id: '657', name: '洪琇卿-3', windowNo: '1號窗口', tableNo: '42桌/總務-1' },
+{ id: '658', name: '洪琇卿-4', windowNo: '1號窗口', tableNo: '42桌/總務-1' },
+{ id: '659', name: '洪琇卿-5', windowNo: '1號窗口', tableNo: '42桌/總務-1' },
+{ id: '660', name: '洪琇卿-6', windowNo: '1號窗口', tableNo: '42桌/總務-1' },
+{ id: '661', name: '洪琇卿-7', windowNo: '1號窗口', tableNo: '42桌/總務-1' },
+{ id: '662', name: '洪琇卿-8', windowNo: '1號窗口', tableNo: '42桌/總務-1' },
+{ id: '663', name: '洪琇卿-9', windowNo: '1號窗口', tableNo: '42桌/總務-1' },
+{ id: '664', name: '洪琇卿-10', windowNo: '1號窗口', tableNo: '42桌/總務-1' },
+{ id: '665', name: '洪琇卿-11', windowNo: '1號窗口', tableNo: '42桌/總務-1' },
+{ id: '666', name: '李壬萍', windowNo: '1號窗口', tableNo: '78桌/總務-10' },
+{ id: '667', name: '李壬萍-2', windowNo: '1號窗口', tableNo: '78桌/總務-10' },
+{ id: '668', name: '李壬萍-3', windowNo: '1號窗口', tableNo: '78桌/總務-10' },
+{ id: '669', name: '李壬萍-4', windowNo: '1號窗口', tableNo: '78桌/總務-10' },
+{ id: '670', name: '余依庭', windowNo: '1號窗口', tableNo: '78桌/總務-10' },
+{ id: '671', name: '余依庭-2', windowNo: '1號窗口', tableNo: '78桌/總務-10' },
+{ id: '672', name: '余依庭-3', windowNo: '1號窗口', tableNo: '78桌/總務-10' },
+{ id: '673', name: '李秀玲', windowNo: '1號窗口', tableNo: '78桌/總務-10' },
+{ id: '674', name: '李秀玲-2', windowNo: '1號窗口', tableNo: '78桌/總務-10' },
+{ id: '675', name: '李秀玲-3', windowNo: '1號窗口', tableNo: '78桌/總務-10' },
+{ id: '676', name: '李秀玲-4', windowNo: '1號窗口', tableNo: '78桌/總務-10' },
+{ id: '677', name: '張瑜珊', windowNo: '1號窗口', tableNo: '59桌/總務-2' },
+{ id: '678', name: '龔金英', windowNo: '1號窗口', tableNo: '60桌/總務-3' },
+{ id: '679', name: '陳志豪', windowNo: '1號窗口', tableNo: '60桌/總務-3' },
+{ id: '680', name: '張卉杭', windowNo: '1號窗口', tableNo: '60桌/總務-3' },
+{ id: '681', name: '張瑜云', windowNo: '1號窗口', tableNo: '59桌/總務-2' },
+{ id: '682', name: '黃竑諭', windowNo: '1號窗口', tableNo: '59桌/總務-2' },
+{ id: '683', name: '黃翔威', windowNo: '1號窗口', tableNo: '59桌/總務-2' },
+{ id: '684', name: '黃翔囿', windowNo: '1號窗口', tableNo: '59桌/總務-2' },
+{ id: '685', name: '張慈文', windowNo: '1號窗口', tableNo: '60桌/總務-3' },
+{ id: '686', name: '張雅柔', windowNo: '1號窗口', tableNo: '60桌/總務-3' },
+{ id: '687', name: '伍柏丞', windowNo: '1號窗口', tableNo: '60桌/總務-3' },
+{ id: '688', name: '林文玄', windowNo: '1號窗口', tableNo: '60桌/總務-3' },
+{ id: '689', name: '洪美姿', windowNo: '1號窗口', tableNo: '60桌/總務-3' },
+{ id: '690', name: '林雪玲', windowNo: '1號窗口', tableNo: '66桌/總務-6' },
+{ id: '691', name: '潘瑞文', windowNo: '1號窗口', tableNo: '66桌/總務-6' },
+{ id: '692', name: '王騰緯', windowNo: '1號窗口', tableNo: '66桌/總務-6' },
+{ id: '693', name: '林雪琴', windowNo: '1號窗口', tableNo: '60桌/總務-3' },
+{ id: '694', name: '張瑞鳳', windowNo: '1號窗口', tableNo: '60桌/總務-3' },
+{ id: '695', name: '張瑞祥', windowNo: '1號窗口', tableNo: '66桌/總務-6' },
+{ id: '696', name: '張可欣', windowNo: '1號窗口', tableNo: '66桌/總務-6' },
+{ id: '697', name: '盧宇翔', windowNo: '1號窗口', tableNo: '66桌/總務-6' },
+{ id: '698', name: '林家正', windowNo: '1號窗口', tableNo: '66桌/總務-6' },
+{ id: '699', name: '林柔安', windowNo: '1號窗口', tableNo: '66桌/總務-6' },
+{ id: '700', name: '林展毅', windowNo: '1號窗口', tableNo: '66桌/總務-6' },
+{ id: '701', name: '林建良', windowNo: '1號窗口', tableNo: '66桌/總務-6' },
+{ id: '702', name: '唐明立', windowNo: '1號窗口', tableNo: '59桌/總務-2' },
+{ id: '703', name: '李莉瑩', windowNo: '1號窗口', tableNo: '59桌/總務-2' },
+{ id: '704', name: '唐牧炘', windowNo: '1號窗口', tableNo: '59桌/總務-2' },
+{ id: '705', name: '唐牧軒', windowNo: '1號窗口', tableNo: '59桌/總務-2' },
+{ id: '706', name: '唐牧允', windowNo: '1號窗口', tableNo: '59桌/總務-2' },
+{ id: '707', name: '葉金皓', windowNo: '1號窗口', tableNo: '59桌/總務-2' },
+{ id: '708', name: '張雅慧', windowNo: '1號窗口', tableNo: '64桌/總務-4' },
+{ id: '709', name: '劉合芳', windowNo: '1號窗口', tableNo: '64桌/總務-4' },
+{ id: '710', name: '劉合芳-2', windowNo: '1號窗口', tableNo: '64桌/總務-4' },
+{ id: '711', name: '劉合芳-3', windowNo: '1號窗口', tableNo: '64桌/總務-4' },
+{ id: '712', name: '劉合芳-4', windowNo: '1號窗口', tableNo: '64桌/總務-4' },
+{ id: '713', name: '劉合芳-5', windowNo: '1號窗口', tableNo: '64桌/總務-4' },
+{ id: '714', name: '尤暄惠', windowNo: '1號窗口', tableNo: '64桌/總務-4' },
+{ id: '715', name: '尤暄惠-2', windowNo: '1號窗口', tableNo: '64桌/總務-4' },
+{ id: '716', name: '尤暄惠-3', windowNo: '1號窗口', tableNo: '64桌/總務-4' },
+{ id: '717', name: '方雪芳', windowNo: '1號窗口', tableNo: '64桌/總務-4' },
+{ id: '718', name: '黃靖閔', windowNo: '1號窗口', tableNo: '65桌/總務-5' },
+{ id: '719', name: '黃靖閔-2', windowNo: '1號窗口', tableNo: '65桌/總務-5' },
+{ id: '720', name: '黃靖閔-3', windowNo: '1號窗口', tableNo: '65桌/總務-5' },
+{ id: '721', name: '黃靖閔-4', windowNo: '1號窗口', tableNo: '65桌/總務-5' },
+{ id: '722', name: '黃靖閔-5', windowNo: '1號窗口', tableNo: '65桌/總務-5' },
+{ id: '723', name: '黃靖閔-6', windowNo: '1號窗口', tableNo: '65桌/總務-5' },
+{ id: '724', name: '黃靖閔-7', windowNo: '1號窗口', tableNo: '65桌/總務-5' },
+{ id: '725', name: '黃靖閔-8', windowNo: '1號窗口', tableNo: '65桌/總務-5' },
+{ id: '726', name: '黃靖閔-9', windowNo: '1號窗口', tableNo: '65桌/總務-5' },
+{ id: '727', name: '黃靖閔-10', windowNo: '1號窗口', tableNo: '65桌/總務-5' },
+{ id: '728', name: '黃靖閔-11', windowNo: '1號窗口', tableNo: '65桌/總務-5' },
+{ id: '729', name: '潘郁芹', windowNo: '1號窗口', tableNo: '70桌/總務-7' },
+{ id: '730', name: '潘郁芹-2', windowNo: '1號窗口', tableNo: '70桌/總務-7' },
+{ id: '731', name: '李毓敏', windowNo: '1號窗口', tableNo: '70桌/總務-7' },
+{ id: '732', name: '李毓敏-2', windowNo: '1號窗口', tableNo: '70桌/總務-7' },
+{ id: '733', name: '李毓敏-3', windowNo: '1號窗口', tableNo: '70桌/總務-7' },
+{ id: '734', name: '李毓敏-4', windowNo: '1號窗口', tableNo: '70桌/總務-7' },
+{ id: '735', name: '李毓敏-5', windowNo: '1號窗口', tableNo: '70桌/總務-7' },
+{ id: '736', name: '李毓敏-6', windowNo: '1號窗口', tableNo: '70桌/總務-7' },
+{ id: '737', name: '李毓敏-7', windowNo: '1號窗口', tableNo: '70桌/總務-7' },
+{ id: '738', name: '李毓敏-8', windowNo: '1號窗口', tableNo: '70桌/總務-7' },
+{ id: '739', name: '黃彥愷', windowNo: '1號窗口', tableNo: '71桌/總務-8' },
+{ id: '740', name: '黃彥愷-2', windowNo: '1號窗口', tableNo: '71桌/總務-8' },
+{ id: '741', name: '黃彥愷-3', windowNo: '1號窗口', tableNo: '71桌/總務-8' },
+{ id: '742', name: '黃彥愷-4', windowNo: '1號窗口', tableNo: '71桌/總務-8' },
+{ id: '743', name: '陳立群', windowNo: '1號窗口', tableNo: '71桌/總務-8' },
+{ id: '744', name: '陳立群-2', windowNo: '1號窗口', tableNo: '71桌/總務-8' },
+{ id: '745', name: '陳立群-3', windowNo: '1號窗口', tableNo: '71桌/總務-8' },
+{ id: '746', name: '陳立群-4', windowNo: '1號窗口', tableNo: '71桌/總務-8' },
+{ id: '747', name: '陳立群-5', windowNo: '1號窗口', tableNo: '71桌/總務-8' },
+{ id: '748', name: '李秀玲-5', windowNo: '1號窗口', tableNo: '72桌/總務-9' },
+{ id: '749', name: '李秀玲-6', windowNo: '1號窗口', tableNo: '72桌/總務-9' },
+{ id: '750', name: '李秀玲-7', windowNo: '1號窗口', tableNo: '72桌/總務-9' },
+{ id: '751', name: '李秀玲-8', windowNo: '1號窗口', tableNo: '72桌/總務-9' },
+{ id: '752', name: '李秀玲-9', windowNo: '1號窗口', tableNo: '72桌/總務-9' },
+{ id: '753', name: '李秀玲-10', windowNo: '1號窗口', tableNo: '72桌/總務-9' },
+{ id: '754', name: '李秀玲-11', windowNo: '1號窗口', tableNo: '72桌/總務-9' },
+{ id: '755', name: '李秀玲-12', windowNo: '1號窗口', tableNo: '72桌/總務-9' },
+{ id: '756', name: '李秀玲-13', windowNo: '1號窗口', tableNo: '72桌/總務-9' },
+{ id: '757', name: '李秀玲-14', windowNo: '1號窗口', tableNo: '72桌/總務-9' },
+{ id: '758', name: '許村定', windowNo: '1號窗口', tableNo: '81桌/餐廳' },
+{ id: '759', name: '王周月圓', windowNo: '1號窗口', tableNo: '81桌/餐廳' },
+{ id: '760', name: '王周月圓-2', windowNo: '1號窗口', tableNo: '81桌/餐廳' },
+{ id: '761', name: '王周月圓-3', windowNo: '1號窗口', tableNo: '81桌/餐廳' },
+{ id: '762', name: '徐久昌', windowNo: '1號窗口', tableNo: '81桌/餐廳' },
+{ id: '763', name: '徐久昌-2', windowNo: '1號窗口', tableNo: '81桌/餐廳' },
+{ id: '764', name: '施秋英', windowNo: '1號窗口', tableNo: '81桌/餐廳' },
+{ id: '765', name: '施秋英-2', windowNo: '1號窗口', tableNo: '81桌/餐廳' },
+{ id: '766', name: '施秋英-3', windowNo: '1號窗口', tableNo: '81桌/餐廳' },
+{ id: '767', name: '賴沐香', windowNo: '1號窗口', tableNo: '81桌/餐廳' },
+
+        ];
+
+        let guests = [];
+        let confirmCallback = null;
+
+        // 初始化載入
+        window.onload = function() {
+            loadGuests();
+            
+            // 初始化 QR Code 預設網址 (使用目前網址)
+            const currentUrl = window.location.href;
+            document.getElementById('qr-url-input').value = currentUrl;
+            generateQRCode();
+        };
+
+        // 從 LocalStorage 載入資料
+        function loadGuests() {
+            const stored = localStorage.getItem('event_guests');
+            if (stored) {
+                try {
+                    guests = JSON.parse(stored);
+                } catch(e) {
+                    guests = [...DEFAULT_GUESTS];
+                }
+            } else {
+                guests = [...DEFAULT_GUESTS];
+                saveToLocalStorage();
+            }
+            renderAdminTable();
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('event_guests', JSON.stringify(guests));
+            renderAdminTable();
+        }
+
+        // ================= 純姓名搜尋與比對 =================
+        function handleSearchInput(value) {
+            const query = value.trim().toLowerCase();
+            const suggestList = document.getElementById('suggest-list');
+            const clearBtn = document.getElementById('clear-btn');
+            const noResultMsg = document.getElementById('no-result-msg');
+
+            if (query.length > 0) {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+                suggestList.classList.add('hidden');
+                noResultMsg.classList.add('hidden');
+                return;
+            }
+
+            // 僅比對姓名 (模糊搜尋)
+            const matches = guests.filter(g => g.name.toLowerCase().includes(query));
+
+            if (matches.length > 0) {
+                noResultMsg.classList.add('hidden');
+                suggestList.innerHTML = matches.map(g => `
+                    <div onclick="selectGuest('${g.id}')" class="px-4 py-3 hover:bg-gold-500/20 cursor-pointer flex justify-between items-center transition group">
+                        <span class="text-white font-medium group-hover:text-gold-300 text-base">
+                            <i class="fa-solid fa-user-check text-gold-400 mr-2 text-sm"></i>${escapeHtml(g.name)}
+                        </span>
+                        <span class="text-xs text-slate-400 bg-navy-950 px-2.5 py-1 rounded border border-slate-700">查看資訊</span>
+                    </div>
+                `).join('');
+                suggestList.classList.remove('hidden');
+            } else {
+                suggestList.classList.add('hidden');
+                noResultMsg.classList.remove('hidden');
+            }
+        }
+
+        function clearSearch() {
+            const input = document.getElementById('name-search-input');
+            input.value = '';
+            handleSearchInput('');
+            input.focus();
+        }
+
+        // 點選搜尋結果，跳出醒目資訊 Modal
+        function selectGuest(id) {
+            const guest = guests.find(g => g.id === id);
+            if (!guest) return;
+
+            document.getElementById('modal-guest-name').innerText = guest.name;
+            document.getElementById('modal-window-no').innerText = guest.windowNo;
+            document.getElementById('modal-table-no').innerText = guest.tableNo;
+
+            document.getElementById('suggest-list').classList.add('hidden');
+            document.getElementById('result-modal').classList.remove('hidden');
+        }
+
+        function closeResultModal() {
+            document.getElementById('result-modal').classList.add('hidden');
+        }
+
+
+        // ================= 頁籤切換邏輯 =================
+        function switchTab(tabName) {
+            const tabs = ['search', 'qrcode', 'admin'];
+            tabs.forEach(t => {
+                const sec = document.getElementById(`tab-${t}`);
+                const nav = document.getElementById(`nav-${t}`);
+                if (t === tabName) {
+                    sec.classList.remove('hidden');
+                    nav.className = "px-2.5 sm:px-3 py-1.5 rounded-lg border border-gold-500/30 bg-gold-500/10 text-gold-300 font-medium transition flex items-center gap-1.5";
+                } else {
+                    sec.classList.add('hidden');
+                    nav.className = "px-2.5 sm:px-3 py-1.5 rounded-lg border border-gold-500/10 text-slate-400 hover:text-gold-300 transition flex items-center gap-1.5";
+                }
+            });
+        }
+
+
+        // ================= QR Code 產生邏輯 =================
+        function generateQRCode() {
+            const url = document.getElementById('qr-url-input').value.trim();
+            const container = document.getElementById('qrcode-canvas-container');
+            container.innerHTML = '';
+
+            if (!url) return;
+
+            new QRCode(container, {
+                text: url,
+                width: 180,
+                height: 180,
+                colorDark : "#050914",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        }
+
+
+        // ================= 後台名單管理邏輯 =================
+        function renderAdminTable() {
+            const tbody = document.getElementById('guest-table-body');
+            const countSpan = document.getElementById('guest-count');
+            const query = document.getElementById('admin-search-input').value.trim().toLowerCase();
+
+            countSpan.innerText = guests.length;
+
+            const filtered = guests.filter(g => g.name.toLowerCase().includes(query));
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center py-8 text-slate-500 text-xs">尚無相關賓客資料</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(g => `
+                <tr class="hover:bg-navy-800/60 transition">
+                    <td class="py-3 px-4 font-medium text-white">${escapeHtml(g.name)}</td>
+                    <td class="py-3 px-4 text-gold-300">${escapeHtml(g.windowNo)}</td>
+                    <td class="py-3 px-4 text-gold-400 font-semibold">${escapeHtml(g.tableNo)}</td>
+                    <td class="py-3 px-4 text-center">
+                        <button onclick="openEditModal('${g.id}')" title="編輯" class="text-slate-400 hover:text-gold-300 px-2 py-1 transition"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="confirmDeleteGuest('${g.id}')" title="刪除" class="text-slate-400 hover:text-red-400 px-2 py-1 transition"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openAddModal() {
+            document.getElementById('edit-modal-title').innerText = "手動新增賓客資料";
+            document.getElementById('edit-guest-id').value = "";
+            document.getElementById('input-name').value = "";
+            document.getElementById('input-window').value = "";
+            document.getElementById('input-table').value = "";
+            document.getElementById('edit-modal').classList.remove('hidden');
+        }
+
+        function openEditModal(id) {
+            const guest = guests.find(g => g.id === id);
+            if (!guest) return;
+
+            document.getElementById('edit-modal-title').innerText = "編輯賓客資料";
+            document.getElementById('edit-guest-id').value = guest.id;
+            document.getElementById('input-name').value = guest.name;
+            document.getElementById('input-window').value = guest.windowNo;
+            document.getElementById('input-table').value = guest.tableNo;
+            document.getElementById('edit-modal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.add('hidden');
+        }
+
+        function saveGuest(e) {
+            e.preventDefault();
+            const id = document.getElementById('edit-guest-id').value;
+            const name = document.getElementById('input-name').value.trim();
+            const windowNo = document.getElementById('input-window').value.trim();
+            const tableNo = document.getElementById('input-table').value.trim();
+
+            if (!name || !windowNo || !tableNo) return;
+
+            if (id) {
+                // 編輯
+                const index = guests.findIndex(g => g.id === id);
+                if (index !== -1) {
+                    guests[index] = { id, name, windowNo, tableNo };
+                }
+            } else {
+                // 新增
+                const newId = Date.now().toString() + Math.random().toString(36).substr(2, 4);
+                guests.push({ id: newId, name, windowNo, tableNo });
+            }
+
+            saveToLocalStorage();
+            closeEditModal();
+        }
+
+        // 刪除個別賓客 (帶確認)
+        function confirmDeleteGuest(id) {
+            const guest = guests.find(g => g.id === id);
+            if (!guest) return;
+
+            showConfirmModal(
+                `確定要刪除「${guest.name}」這筆賓客資料嗎？`,
+                '刪除後資料將無法復原。',
+                'fa-trash text-red-400',
+                function() {
+                    guests = guests.filter(g => g.id !== id);
+                    saveToLocalStorage();
+                }
+            );
+        }
+
+        // 載入範例資料 (帶確認)
+        function confirmLoadSampleData() {
+            showConfirmModal(
+                '載入預設範例資料？',
+                '這將會覆蓋您目前的名單並恢復至測試範例，確定要執行嗎？',
+                'fa-flask text-gold-400',
+                function() {
+                    guests = [...DEFAULT_GUESTS];
+                    saveToLocalStorage();
+                }
+            );
+        }
+
+        // 清空全部名單 (帶確認)
+        function confirmClearAll() {
+            showConfirmModal(
+                '清空所有賓客名單？',
+                '這將會刪除目前所有的賓客資料且無法復原，請確認！',
+                'fa-triangle-exclamation text-red-500',
+                function() {
+                    guests = [];
+                    saveToLocalStorage();
+                }
+            );
+        }
+
+
+        // ================= CSV/Excel 匯入與智能編碼解碼 (修正亂碼核心) =================
+        function openCsvModal() {
+            document.getElementById('csv-file-input').value = '';
+            document.getElementById('csv-text-input').value = '';
+            document.getElementById('csv-modal').classList.remove('hidden');
+        }
+
+        function closeCsvModal() {
+            document.getElementById('csv-modal').classList.add('hidden');
+        }
+
+        function processCsvImport() {
+            const fileInput = document.getElementById('csv-file-input');
+            const textInput = document.getElementById('csv-text-input').value.trim();
+
+            if (fileInput.files && fileInput.files[0]) {
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+
+                // 讀取 ArrayBuffer 以進行多編碼自動偵測
+                reader.onload = function(e) {
+                    const buffer = e.target.result;
+                    let decodedText = '';
+
+                    try {
+                        // 1. 先嘗試以 UTF-8 解碼
+                        const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
+                        decodedText = utf8Decoder.decode(buffer);
+                    } catch (err) {
+                        // 2. 若 UTF-8 解析失敗，代表為 Windows Excel 預設之 Big5 / ANSI 編碼
+                        try {
+                            const big5Decoder = new TextDecoder('big5');
+                            decodedText = big5Decoder.decode(buffer);
+                        } catch (err2) {
+                            // 3. 降級備用
+                            const fallbackDecoder = new TextDecoder('utf-8');
+                            decodedText = fallbackDecoder.decode(buffer);
+                        }
+                    }
+
+                    // 防護：若 UTF-8 成功但含有大量中文替代字元 ，切換為 Big5
+                    if (decodedText.includes('')) {
+                        try {
+                            const big5Decoder = new TextDecoder('big5');
+                            const tryBig5 = big5Decoder.decode(buffer);
+                            if (!tryBig5.includes('')) {
+                                decodedText = tryBig5;
+                            }
+                        } catch(e){}
+                    }
+
+                    parseCsvAndAdd(decodedText);
+                };
+
+                reader.readAsArrayBuffer(file);
+            } else if (textInput) {
+                parseCsvAndAdd(textInput);
+            } else {
+                showConfirmModal('提示', '請先選擇 CSV 檔案或於框內貼上資料！', 'fa-info-circle text-gold-400', null);
+            }
+        }
+
+        // 解析 CSV 或 Excel 複製貼上的文字 (支援逗號 , 與 Tab \t 分隔)
+        function parseCsvAndAdd(text) {
+            // 移除 UTF-8 BOM 碼 (若存在)
+            if (text.charCodeAt(0) === 0xFEFF) {
+                text = text.slice(1);
+            }
+
+            const lines = text.split(/\r\n|\n/);
+            let count = 0;
+
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (!trimmed) return;
+
+                // 支援以 Tab (Excel 剪貼簿) 或逗號分隔
+                let parts = trimmed.includes('\t') ? trimmed.split('\t') : trimmed.split(',');
+                parts = parts.map(s => s.trim().replace(/^["']|["']$/g, '')); // 移除報頭雙引號
+
+                // 排除標題列與不完整資料
+                if (parts.length >= 3 && parts[0] !== '' && parts[0] !== '姓名' && parts[0] !== 'Name') {
+                    const newId = Date.now().toString() + Math.random().toString(36).substr(2, 4);
+                    guests.push({
+                        id: newId,
+                        name: parts[0],
+                        windowNo: parts[1],
+                        tableNo: parts[2]
+                    });
+                    count++;
+                }
+            });
+
+            if (count > 0) {
+                saveToLocalStorage();
+                closeCsvModal();
+                showConfirmModal('匯入成功', `成功匯入 ${count} 筆賓客資料！`, 'fa-circle-check text-green-400', null);
+            } else {
+                showConfirmModal('匯入失敗', '未讀取到有效賓客資料，請確認格式為：姓名,報到窗口,桌號', 'fa-triangle-exclamation text-amber-400', null);
+            }
+        }
+
+        // 下載包含 UTF-8 BOM 的標準 Excel CSV 樣板檔
+        function downloadCsvTemplate() {
+            const csvContent = "\uFEFF姓名,報到窗口,桌號\n王大明,窗口 1,主桌 - 01\n李美玲,窗口 1,第 2 桌\n張志豪,窗口 2,第 5 桌";
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "賓客名單匯入範例.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+
+        // ================= 通用確認 Modal 邏輯 =================
+        function showConfirmModal(title, msg, iconClass, callback) {
+            document.getElementById('confirm-title').innerText = title;
+            document.getElementById('confirm-msg').innerText = msg;
+            document.getElementById('confirm-icon').className = `fa-solid ${iconClass} text-3xl mb-3`;
+            confirmCallback = callback;
+            document.getElementById('confirm-modal').classList.remove('hidden');
+        }
+
+        function closeConfirmModal(isOk) {
+            document.getElementById('confirm-modal').classList.add('hidden');
+            if (isOk && typeof confirmCallback === 'function') {
+                confirmCallback();
+            }
+            confirmCallback = null;
+        }
+
+
+        // 防 XSS 轉義
+        function escapeHtml(str) {
+            return str.replace(/[&<>"']/g, function(m) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                }[m];
+            });
+        }
+    </script>
+</body>
+</html>
